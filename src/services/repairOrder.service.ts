@@ -38,7 +38,11 @@ export async function getRepairOrders(params: {
   const { take, skip } = paginate(page, limit);
 
   const where: Record<string, unknown> = { deletedAt: null };
-  if (status) where.status = status;
+  if (status) {
+    where.status = status.includes(',')
+      ? { in: status.split(',').map(s => s.trim()) }
+      : status;
+  }
   if (customerId) where.customerId = customerId;
   if (vehicleId) where.vehicleId = vehicleId;
   if (technicianId) {

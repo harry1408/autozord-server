@@ -43,8 +43,13 @@ if (!fs.existsSync(dataDir)) {
 }
 
 app.use(helmet({ crossOriginResourcePolicy: { policy: 'cross-origin' } }));
+const allowedOrigins = (process.env.CLIENT_URL || 'http://localhost:5173')
+  .split(',').map(o => o.trim());
 app.use(cors({
-  origin: process.env.CLIENT_URL || 'http://localhost:5173',
+  origin: (origin, cb) => {
+    if (!origin || allowedOrigins.some(o => origin.startsWith(o))) cb(null, true);
+    else cb(new Error(`CORS blocked: ${origin}`));
+  },
   credentials: true,
 }));
 app.use(compression());

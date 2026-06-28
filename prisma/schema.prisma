@@ -1,0 +1,294 @@
+// To migrate from SQLite to PostgreSQL, change only:
+//   provider = "postgresql"
+//   url = env("DATABASE_URL")
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = "file:../data/autoshop360.db"
+}
+
+model User {
+  id           String    @id @default(uuid())
+  email        String    @unique
+  passwordHash String
+  firstName    String
+  lastName     String
+  role         String    @default("RECEPTIONIST")
+  isActive     Boolean   @default(true)
+  refreshToken String?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  deletedAt    DateTime?
+
+  technician        Technician?
+  roStatusHistories ROStatusHistory[]
+}
+
+model Customer {
+  id        String    @id @default(uuid())
+  firstName String
+  lastName  String
+  email     String?
+  phone     String
+  address   String?
+  city      String?
+  state     String?
+  zip       String?
+  notes     String?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  vehicles     Vehicle[]
+  repairOrders RepairOrder[]
+  estimates    Estimate[]
+  invoices     Invoice[]
+}
+
+model Vehicle {
+  id           String    @id @default(uuid())
+  customerId   String
+  make         String
+  model        String
+  year         Int
+  vin          String?   @unique
+  licensePlate String?
+  color        String?
+  mileage      Int?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  deletedAt    DateTime?
+
+  customer     Customer    @relation(fields: [customerId], references: [id])
+  repairOrders RepairOrder[]
+  inspections  Inspection[]
+}
+
+model Technician {
+  id              String   @id @default(uuid())
+  userId          String   @unique
+  specializations String?
+  hourlyRate      Float    @default(0)
+  isActive        Boolean  @default(true)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  user        User                    @relation(fields: [userId], references: [id])
+  assignments RepairOrderTechnician[]
+  inspections Inspection[]
+}
+
+model RepairOrder {
+  id            String    @id @default(uuid())
+  roNumber      String    @unique
+  customerId    String
+  vehicleId     String
+  status        String    @default("ESTIMATE")
+  promisedDate  DateTime?
+  mileageIn     Int?
+  mileageOut    Int?
+  customerNotes String?
+  internalNotes String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  deletedAt     DateTime?
+
+  customer      Customer                @relation(fields: [customerId], references: [id])
+  vehicle       Vehicle                 @relation(fields: [vehicleId], references: [id])
+  laborLines    LaborLine[]
+  partsLines    PartsLine[]
+  technicians   RepairOrderTechnician[]
+  statusHistory ROStatusHistory[]
+  invoice       Invoice?
+  inspection    Inspection?
+}
+
+model LaborLine {
+  id            String   @id @default(uuid())
+  repairOrderId String?
+  estimateId    String?
+  description   String
+  hours         Float
+  rate          Float
+  subtotal      Float
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  repairOrder RepairOrder? @relation(fields: [repairOrderId], references: [id])
+  estimate    Estimate?    @relation(fields: [estimateId], references: [id])
+}
+
+model PartsLine {
+  id            String   @id @default(uuid())
+  repairOrderId String?
+  estimateId    String?
+  partId        String?
+  name          String
+  partNumber    String?
+  quantity      Int      @default(1)
+  unitCost      Float
+  sellingPrice  Float
+  subtotal      Float
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  repairOrder RepairOrder? @relation(fields: [repairOrderId], references: [id])
+  estimate    Estimate?    @relation(fields: [estimateId], references: [id])
+  part        Part?        @relation(fields: [partId], references: [id])
+}
+
+model RepairOrderTechnician {
+  id            String   @id @default(uuid())
+  repairOrderId String
+  technicianId  String
+  assignedAt    DateTime @default(now())
+
+  repairOrder RepairOrder @relation(fields: [repairOrderId], references: [id])
+  technician  Technician  @relation(fields: [technicianId], references: [id])
+
+  @@unique([repairOrderId, technicianId])
+}
+
+model ROStatusHistory {
+  id            String   @id @default(uuid())
+  repairOrderId String
+  fromStatus    String?
+  toStatus      String
+  note          String?
+  changedById   String
+  changedAt     DateTime @default(now())
+
+  repairOrder RepairOrder @relation(fields: [repairOrderId], references: [id])
+  changedBy   User        @relation(fields: [changedById], references: [id])
+}
+
+model Estimate {
+  id             String    @id @default(uuid())
+  estimateNumber String    @unique
+  customerId     String
+  vehicleId      String?
+  status         String    @default("DRAFT")
+  expiryDate     DateTime?
+  notes          String?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+  deletedAt      DateTime?
+
+  customer   Customer    @relation(fields: [customerId], references: [id])
+  laborLines LaborLine[]
+  partsLines PartsLine[]
+}
+
+model Invoice {
+  id            String    @id @default(uuid())
+  invoiceNumber String    @unique
+  repairOrderId String    @unique
+  customerId    String
+  status        String    @default("DRAFT")
+  subtotal      Float
+  taxRate       Float     @default(0)
+  taxAmount     Float     @default(0)
+  discount      Float     @default(0)
+  total         Float
+  amountPaid    Float     @default(0)
+  balance       Float
+  notes         String?
+  dueDate       DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  deletedAt     DateTime?
+
+  repairOrder RepairOrder @relation(fields: [repairOrderId], references: [id])
+  customer    Customer    @relation(fields: [customerId], references: [id])
+  payments    Payment[]
+}
+
+model Payment {
+  id              String   @id @default(uuid())
+  invoiceId       String
+  amount          Float
+  method          String   @default("CASH")
+  referenceNumber String?
+  notes           String?
+  paidAt          DateTime @default(now())
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  invoice Invoice @relation(fields: [invoiceId], references: [id])
+}
+
+model Inspection {
+  id            String   @id @default(uuid())
+  repairOrderId String?  @unique
+  vehicleId     String
+  technicianId  String?
+  status        String   @default("IN_PROGRESS")
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  vehicle     Vehicle         @relation(fields: [vehicleId], references: [id])
+  repairOrder RepairOrder?    @relation(fields: [repairOrderId], references: [id])
+  technician  Technician?     @relation(fields: [technicianId], references: [id])
+  items       InspectionItem[]
+}
+
+model InspectionItem {
+  id           String   @id @default(uuid())
+  inspectionId String
+  category     String
+  name         String
+  status       String   @default("OK")
+  notes        String?
+  photos       String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  inspection Inspection @relation(fields: [inspectionId], references: [id])
+}
+
+model Part {
+  id             String    @id @default(uuid())
+  partNumber     String?   @unique
+  name           String
+  description    String?
+  category       String?
+  unitCost       Float
+  sellingPrice   Float
+  quantityOnHand Int       @default(0)
+  minStock       Int       @default(0)
+  supplierId     String?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+  deletedAt      DateTime?
+
+  supplier   Supplier?   @relation(fields: [supplierId], references: [id])
+  partsLines PartsLine[]
+}
+
+model Supplier {
+  id        String   @id @default(uuid())
+  name      String
+  contact   String?
+  phone     String?
+  email     String?
+  address   String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  parts Part[]
+}
+
+model ShopSettings {
+  id        String   @id @default(uuid())
+  shopName  String   @default("My Auto Shop")
+  address   String?
+  phone     String?
+  email     String?
+  taxRate   Float    @default(0)
+  laborRate Float    @default(85)
+  logoUrl   String?
+  updatedAt DateTime @updatedAt
+}

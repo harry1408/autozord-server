@@ -7,7 +7,7 @@ generator client {
 
 datasource db {
   provider = "sqlite"
-  url      = "file:../data/autoshop360.db"
+  url      = env("DATABASE_URL")
 }
 
 model User {

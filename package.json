@@ -43,6 +43,7 @@
     "@types/multer": "^1.4.11",
     "@types/node": "^20.14.2",
     "@types/uuid": "^9.0.8",
+    "gh-pages": "^6.3.0",
     "prisma": "^5.14.0",
     "ts-node": "^10.9.2",
     "ts-node-dev": "^2.0.0",

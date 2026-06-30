@@ -282,13 +282,17 @@ model Supplier {
 }
 
 model ShopSettings {
-  id        String   @id @default(uuid())
-  shopName  String   @default("My Auto Shop")
-  address   String?
-  phone     String?
-  email     String?
-  taxRate   Float    @default(0)
-  laborRate Float    @default(85)
-  logoUrl   String?
-  updatedAt DateTime @updatedAt
+  id         String   @id @default(uuid())
+  shopName   String   @default("My Auto Shop")
+  address    String?
+  phone      String?
+  email      String?
+  taxRate    Float    @default(0)
+  laborRate  Float    @default(85)
+  logoUrl    String?
+  gstNumber  String?
+  pstNumber  String?
+  gstRate    Float    @default(5)
+  pstRate    Float    @default(7)
+  updatedAt  DateTime @updatedAt
 }

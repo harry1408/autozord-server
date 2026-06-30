@@ -7,7 +7,18 @@ const INVOICE_INCLUDE = {
     include: {
       laborLines: true,
       partsLines: true,
-      vehicle: { select: { make: true, model: true, year: true, vin: true } },
+      vehicle: { select: { make: true, model: true, year: true, vin: true, licensePlate: true } },
+      technicians: {
+        include: {
+          technician: {
+            include: { user: { select: { firstName: true, lastName: true } } },
+          },
+        },
+      },
+      statusHistory: {
+        include: { changedBy: { select: { firstName: true, lastName: true } } },
+        orderBy: { changedAt: 'asc' as const },
+      },
     },
   },
   customer: { select: { id: true, firstName: true, lastName: true, phone: true, email: true, address: true } },

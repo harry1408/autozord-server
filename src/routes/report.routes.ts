@@ -10,5 +10,6 @@ router.get('/repair-orders', getRepairOrdersReport);
 router.get('/technicians', getTechnicianReport);
 router.get('/inventory', getInventoryReport);
 router.get('/aging', getAgingReport);
+router.get('/ar-aging', getAgingReport);
 
 export default router;

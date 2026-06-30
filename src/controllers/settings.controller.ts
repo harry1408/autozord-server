@@ -8,6 +8,11 @@ export async function getSettings(req: Request, res: Response, next: NextFunctio
       settings = await prisma.shopSettings.create({
         data: { id: 'default', shopName: 'Autozord' },
       });
+    } else if (settings.shopName === 'AutoShop360' || settings.shopName === 'My Auto Shop') {
+      settings = await prisma.shopSettings.update({
+        where: { id: 'default' },
+        data: { shopName: 'Autozord' },
+      });
     }
     res.json({ success: true, data: settings });
   } catch (err) { next(err); }

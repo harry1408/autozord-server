@@ -6,7 +6,7 @@ export async function getSettings(req: Request, res: Response, next: NextFunctio
     let settings = await prisma.shopSettings.findFirst({ where: { id: 'default' } });
     if (!settings) {
       settings = await prisma.shopSettings.create({
-        data: { id: 'default', shopName: 'AutoShop360' },
+        data: { id: 'default', shopName: 'Autozord' },
       });
     }
     res.json({ success: true, data: settings });
@@ -18,7 +18,7 @@ export async function updateSettings(req: Request, res: Response, next: NextFunc
     const settings = await prisma.shopSettings.upsert({
       where: { id: 'default' },
       update: req.body,
-      create: { id: 'default', shopName: req.body.shopName ?? 'AutoShop360', ...req.body },
+      create: { id: 'default', shopName: req.body.shopName ?? 'Autozord', ...req.body },
     });
     res.json({ success: true, data: settings });
   } catch (err) { next(err); }

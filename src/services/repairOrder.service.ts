@@ -193,16 +193,22 @@ export async function removeTechnician(roId: string, technicianId: string) {
   });
 }
 
-export async function addJobLine(roId: string, data: { description: string }) {
+export async function addJobLine(roId: string, data: { description: string; discount?: number; partsDiscount?: number }) {
   const ro = await prisma.repairOrder.findFirst({ where: { id: roId, deletedAt: null } });
   if (!ro) throw new AppError('Repair order not found', 404);
   const count = await prisma.jobLine.count({ where: { repairOrderId: roId } });
   return prisma.jobLine.create({
-    data: { repairOrderId: roId, description: data.description, sortOrder: count },
+    data: {
+      repairOrderId: roId,
+      description: data.description,
+      sortOrder: count,
+      discount: data.discount ?? 0,
+      partsDiscount: data.partsDiscount ?? 0,
+    },
   });
 }
 
-export async function updateJobLine(lineId: string, data: { description: string }) {
+export async function updateJobLine(lineId: string, data: { description?: string; discount?: number; partsDiscount?: number }) {
   const line = await prisma.jobLine.findUnique({ where: { id: lineId } });
   if (!line) throw new AppError('Job line not found', 404);
   return prisma.jobLine.update({ where: { id: lineId }, data });

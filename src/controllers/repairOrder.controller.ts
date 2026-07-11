@@ -70,6 +70,27 @@ export async function removeTechnician(req: Request, res: Response, next: NextFu
   } catch (err) { next(err); }
 }
 
+export async function addJobLine(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const data = await roService.addJobLine(req.params.id, req.body);
+    res.status(201).json({ success: true, data });
+  } catch (err) { next(err); }
+}
+
+export async function updateJobLine(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const data = await roService.updateJobLine(req.params.jobId, req.body);
+    res.json({ success: true, data });
+  } catch (err) { next(err); }
+}
+
+export async function deleteJobLine(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    await roService.deleteJobLine(req.params.jobId);
+    res.json({ success: true, message: 'Job deleted' });
+  } catch (err) { next(err); }
+}
+
 export async function addLaborLine(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
     const data = await roService.addLaborLine(req.params.id, req.body);

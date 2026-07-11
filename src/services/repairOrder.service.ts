@@ -5,8 +5,9 @@ import { paginate, buildPaginationMeta, generateRoNumber } from '../utils/helper
 const RO_INCLUDE = {
   customer: { select: { id: true, firstName: true, lastName: true, phone: true, email: true } },
   vehicle: { select: { id: true, make: true, model: true, year: true, vin: true, licensePlate: true } },
-  laborLines: true,
-  partsLines: { include: { part: { select: { id: true, name: true, partNumber: true } } } },
+  jobLines: { orderBy: { sortOrder: 'asc' as const } },
+  laborLines: { orderBy: { createdAt: 'asc' as const } },
+  partsLines: { include: { part: { select: { id: true, name: true, partNumber: true } } }, orderBy: { createdAt: 'asc' as const } },
   technicians: {
     include: {
       technician: {
@@ -192,10 +193,30 @@ export async function removeTechnician(roId: string, technicianId: string) {
   });
 }
 
+export async function addJobLine(roId: string, data: { description: string }) {
+  const ro = await prisma.repairOrder.findFirst({ where: { id: roId, deletedAt: null } });
+  if (!ro) throw new AppError('Repair order not found', 404);
+  const count = await prisma.jobLine.count({ where: { repairOrderId: roId } });
+  return prisma.jobLine.create({
+    data: { repairOrderId: roId, description: data.description, sortOrder: count },
+  });
+}
+
+export async function updateJobLine(lineId: string, data: { description: string }) {
+  const line = await prisma.jobLine.findUnique({ where: { id: lineId } });
+  if (!line) throw new AppError('Job line not found', 404);
+  return prisma.jobLine.update({ where: { id: lineId }, data });
+}
+
+export async function deleteJobLine(lineId: string) {
+  await prisma.jobLine.delete({ where: { id: lineId } });
+}
+
 export async function addLaborLine(roId: string, data: {
   description: string;
   hours: number;
   rate: number;
+  jobLineId?: string;
 }) {
   const ro = await prisma.repairOrder.findFirst({ where: { id: roId, deletedAt: null } });
   if (!ro) throw new AppError('Repair order not found', 404);
@@ -233,6 +254,7 @@ export async function addPartsLine(roId: string, data: {
   quantity: number;
   unitCost: number;
   sellingPrice: number;
+  jobLineId?: string;
 }) {
   const ro = await prisma.repairOrder.findFirst({ where: { id: roId, deletedAt: null } });
   if (!ro) throw new AppError('Repair order not found', 404);

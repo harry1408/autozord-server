@@ -8,6 +8,9 @@ import {
   updateStatus,
   assignTechnician,
   removeTechnician,
+  addJobLine,
+  updateJobLine,
+  deleteJobLine,
   addLaborLine,
   updateLaborLine,
   deleteLaborLine,
@@ -28,6 +31,9 @@ router.delete('/:id', deleteRepairOrder);
 router.patch('/:id/status', updateStatus);
 router.post('/:id/technicians', assignTechnician);
 router.delete('/:id/technicians/:techId', removeTechnician);
+router.post('/:id/jobs', addJobLine);
+router.put('/:id/jobs/:jobId', updateJobLine);
+router.delete('/:id/jobs/:jobId', deleteJobLine);
 router.post('/:id/labor', addLaborLine);
 router.put('/:id/labor/:lineId', updateLaborLine);
 router.delete('/:id/labor/:lineId', deleteLaborLine);

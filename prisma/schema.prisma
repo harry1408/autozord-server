@@ -98,6 +98,7 @@ model RepairOrder {
 
   customer      Customer                @relation(fields: [customerId], references: [id])
   vehicle       Vehicle                 @relation(fields: [vehicleId], references: [id])
+  jobLines      JobLine[]
   laborLines    LaborLine[]
   partsLines    PartsLine[]
   technicians   RepairOrderTechnician[]
@@ -106,10 +107,24 @@ model RepairOrder {
   inspection    Inspection?
 }
 
+model JobLine {
+  id            String      @id @default(uuid())
+  repairOrderId String
+  description   String
+  sortOrder     Int         @default(0)
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+
+  repairOrder   RepairOrder @relation(fields: [repairOrderId], references: [id], onDelete: Cascade)
+  laborLines    LaborLine[]
+  partsLines    PartsLine[]
+}
+
 model LaborLine {
   id            String   @id @default(uuid())
   repairOrderId String?
   estimateId    String?
+  jobLineId     String?
   description   String
   hours         Float
   rate          Float
@@ -119,6 +134,7 @@ model LaborLine {
 
   repairOrder RepairOrder? @relation(fields: [repairOrderId], references: [id])
   estimate    Estimate?    @relation(fields: [estimateId], references: [id])
+  jobLine     JobLine?     @relation(fields: [jobLineId], references: [id], onDelete: Cascade)
 }
 
 model PartsLine {
@@ -126,6 +142,7 @@ model PartsLine {
   repairOrderId String?
   estimateId    String?
   partId        String?
+  jobLineId     String?
   name          String
   partNumber    String?
   quantity      Int      @default(1)
@@ -138,6 +155,7 @@ model PartsLine {
   repairOrder RepairOrder? @relation(fields: [repairOrderId], references: [id])
   estimate    Estimate?    @relation(fields: [estimateId], references: [id])
   part        Part?        @relation(fields: [partId], references: [id])
+  jobLine     JobLine?     @relation(fields: [jobLineId], references: [id], onDelete: Cascade)
 }
 
 model RepairOrderTechnician {

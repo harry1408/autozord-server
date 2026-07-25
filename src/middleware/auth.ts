@@ -50,6 +50,12 @@ export function authorize(...roles: string[]) {
       next();
       return;
     }
+    // Any non-GLOBAL_ADMIN account with no shopId is unassigned/orphaned -
+    // fail closed rather than let shopScope(null) treat it as unscoped
+    // (which would otherwise expose every shop's data to this account).
+    if (!req.user.shopId) {
+      throw new AppError('Account is not assigned to a shop', 403);
+    }
     if (roles.length && !roles.includes(req.user.role)) {
       throw new AppError('Insufficient permissions', 403);
     }

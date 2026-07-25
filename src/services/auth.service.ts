@@ -7,6 +7,23 @@ import {
   verifyRefreshToken,
   JwtPayload,
 } from '../middleware/auth';
+import { getSubscriptionState, isAllowedToOperate } from '../utils/subscription';
+
+const SUBSCRIPTION_LOGIN_MESSAGES: Record<string, string> = {
+  PENDING_VERIFICATION: 'Your account is pending verification. We\'ll notify you once approved.',
+  SUSPENDED: 'This shop has been deactivated.',
+  EXPIRED: 'Your subscription has expired. Contact info@autozord.com to renew.',
+};
+
+async function assertShopAllowsLogin(user: { role: string; shopId: string | null }): Promise<void> {
+  if (user.role === 'GLOBAL_ADMIN' || !user.shopId) return;
+  const shop = await prisma.shop.findUnique({ where: { id: user.shopId } });
+  if (!shop) throw new AppError('Shop not found', 404);
+  const { status } = getSubscriptionState(shop);
+  if (!isAllowedToOperate(status)) {
+    throw new AppError(SUBSCRIPTION_LOGIN_MESSAGES[status] ?? 'Access is currently restricted', 403);
+  }
+}
 
 function sanitizeUser(user: { id: string; email: string; firstName: string; lastName: string; role: string; shopId: string | null; isActive: boolean }) {
   return {
@@ -30,6 +47,8 @@ export async function login(email: string, password: string) {
   if (!valid) {
     throw new AppError('Invalid credentials', 401);
   }
+
+  await assertShopAllowsLogin(user);
 
   const payload: JwtPayload = { userId: user.id, email: user.email, role: user.role, shopId: user.shopId };
   const accessToken = generateAccessToken(payload);
@@ -61,6 +80,8 @@ export async function refresh(refreshToken: string) {
   if (!user || !user.isActive || user.deletedAt) {
     throw new AppError('Invalid refresh token', 401);
   }
+
+  await assertShopAllowsLogin(user);
 
   const newPayload: JwtPayload = { userId: user.id, email: user.email, role: user.role, shopId: user.shopId };
   const newAccessToken = generateAccessToken(newPayload);

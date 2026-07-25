@@ -7,9 +7,10 @@ import {
   deleteVehicle,
 } from '../controllers/vehicle.controller';
 import { authenticate, authorize, SHOP_ROLES } from '../middleware/auth';
+import { requireActiveSubscription } from '../middleware/subscription';
 
 const router = Router();
-router.use(authenticate, authorize(...SHOP_ROLES));
+router.use(authenticate, authorize(...SHOP_ROLES), requireActiveSubscription);
 
 router.get('/', getVehicles);
 router.post('/', createVehicle);

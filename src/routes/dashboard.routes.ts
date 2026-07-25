@@ -1,9 +1,10 @@
 import { Router } from 'express';
 import { getStats, getRevenueChart, getRecentOrders, getActivityFeed } from '../controllers/dashboard.controller';
 import { authenticate, authorize, SHOP_ROLES } from '../middleware/auth';
+import { requireActiveSubscription } from '../middleware/subscription';
 
 const router = Router();
-router.use(authenticate, authorize(...SHOP_ROLES));
+router.use(authenticate, authorize(...SHOP_ROLES), requireActiveSubscription);
 
 router.get('/stats', getStats);
 router.get('/revenue-chart', getRevenueChart);

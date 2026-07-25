@@ -1,9 +1,10 @@
 import { Router } from 'express';
 import { getInspections, getInspection, createInspection, updateInspection, addItem, updateItem } from '../controllers/inspection.controller';
 import { authenticate, authorize, SHOP_ROLES } from '../middleware/auth';
+import { requireActiveSubscription } from '../middleware/subscription';
 
 const router = Router();
-router.use(authenticate, authorize(...SHOP_ROLES));
+router.use(authenticate, authorize(...SHOP_ROLES), requireActiveSubscription);
 
 router.get('/', getInspections);
 router.post('/', createInspection);

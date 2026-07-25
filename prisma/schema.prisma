@@ -36,6 +36,14 @@ model Shop {
   updatedAt DateTime  @updatedAt
   deletedAt DateTime?
 
+  // Subscription — planType: 'LIFETIME_FREE' | 'MONTHLY' | 'YEARLY'.
+  // isVerified defaults true so every pre-existing/admin-created shop is
+  // unaffected; only the public self-signup endpoint sets it false.
+  planType    String?
+  isVerified  Boolean   @default(true)
+  trialEndsAt DateTime?
+  paidUntil   DateTime?
+
   users             User[]
   customers         Customer[]
   vehicles          Vehicle[]

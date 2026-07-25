@@ -19,9 +19,10 @@ import {
   deletePartsLine,
 } from '../controllers/repairOrder.controller';
 import { authenticate, authorize, SHOP_ROLES } from '../middleware/auth';
+import { requireActiveSubscription } from '../middleware/subscription';
 
 const router = Router();
-router.use(authenticate, authorize(...SHOP_ROLES));
+router.use(authenticate, authorize(...SHOP_ROLES), requireActiveSubscription);
 
 router.get('/', getRepairOrders);
 router.post('/', createRepairOrder);

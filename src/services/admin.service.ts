@@ -110,10 +110,18 @@ export async function createShop(data: {
 
 export async function updateShop(id: string, data: Partial<{
   name: string; address: string; city: string; state: string; zip: string; phone: string; email: string; isActive: boolean;
+  planType: string; isVerified: boolean; trialEndsAt: string; paidUntil: string;
 }>) {
   const existing = await prisma.shop.findFirst({ where: { id, deletedAt: null } });
   if (!existing) throw new AppError('Shop not found', 404);
-  return prisma.shop.update({ where: { id }, data });
+  return prisma.shop.update({
+    where: { id },
+    data: {
+      ...data,
+      trialEndsAt: data.trialEndsAt !== undefined ? (data.trialEndsAt ? new Date(data.trialEndsAt) : null) : undefined,
+      paidUntil: data.paidUntil !== undefined ? (data.paidUntil ? new Date(data.paidUntil) : null) : undefined,
+    },
+  });
 }
 
 export async function deleteShop(id: string) {

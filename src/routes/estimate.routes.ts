@@ -4,9 +4,10 @@ import {
   updateStatus, convertToRO,
 } from '../controllers/estimate.controller';
 import { authenticate, authorize, SHOP_ROLES } from '../middleware/auth';
+import { requireActiveSubscription } from '../middleware/subscription';
 
 const router = Router();
-router.use(authenticate, authorize(...SHOP_ROLES));
+router.use(authenticate, authorize(...SHOP_ROLES), requireActiveSubscription);
 
 router.get('/', getEstimates);
 router.post('/', createEstimate);

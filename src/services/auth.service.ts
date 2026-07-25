@@ -9,7 +9,7 @@ import {
   JwtPayload,
 } from '../middleware/auth';
 import { getSubscriptionState, isAllowedToOperate } from '../utils/subscription';
-import { sendEmail, CLIENT_URL } from '../utils/email';
+import { sendEmail, wrapEmailHtml, CLIENT_URL } from '../utils/email';
 
 const SUBSCRIPTION_LOGIN_MESSAGES: Record<string, string> = {
   PENDING_VERIFICATION: 'Your account is pending verification. We\'ll notify you once approved.',
@@ -136,7 +136,7 @@ export async function forgotPassword(email: string): Promise<void> {
   await sendEmail({
     to: user.email,
     subject: 'Reset your Autozord password',
-    html: `<p>Hi ${user.firstName},</p><p>Click the link below to set a new password. This link expires in 1 hour.</p><p><a href='${CLIENT_URL}/reset-password?token=${rawToken}'>Reset your password</a></p><p>If you didn't request this, you can safely ignore this email.</p>`,
+    html: wrapEmailHtml(`<p>Hi ${user.firstName},</p><p>Click the link below to set a new password. This link expires in 1 hour.</p><p><a href='${CLIENT_URL}/reset-password?token=${rawToken}'>Reset your password</a></p><p>If you didn't request this, you can safely ignore this email.</p>`),
     category: 'PASSWORD_RESET',
   });
 }

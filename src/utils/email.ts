@@ -3,7 +3,17 @@ import { prisma } from './prisma';
 
 export const CLIENT_URL = process.env.CLIENT_URL || 'https://autozord.com';
 
+const LOGO_URL = `${CLIENT_URL}/logo.png`;
+
 export type EmailCategory = 'OTP' | 'PASSWORD_RESET' | 'GENERIC';
+
+// Wraps transactional email bodies with the Autozord logo header. Kept to
+// single-quoted attributes and no line breaks, same as the rest of these
+// templates, since the Lambda's API Gateway mapping template corrupts the
+// JSON payload on a literal `"` or embedded newline.
+export function wrapEmailHtml(innerHtml: string): string {
+  return `<div style='text-align:center;margin-bottom:24px;'><img src='${LOGO_URL}' alt='Autozord' style='height:48px;'/></div>${innerHtml}`;
+}
 
 async function logEmail(data: { to: string; subject: string; category: EmailCategory; status: 'SENT' | 'FAILED'; errorMessage?: string }): Promise<void> {
   try {

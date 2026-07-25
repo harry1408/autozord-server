@@ -1,7 +1,7 @@
 import { prisma } from '../utils/prisma';
 import { AppError } from '../middleware/errorHandler';
 import bcrypt from 'bcryptjs';
-import { sendEmail } from '../utils/email';
+import { sendEmail, wrapEmailHtml } from '../utils/email';
 
 const SELF_SERVE_PLANS = ['MONTHLY', 'YEARLY'];
 const TRIAL_DAYS = 7;
@@ -22,7 +22,7 @@ async function sendOtpEmail(email: string, firstName: string, otp: string): Prom
   await sendEmail({
     to: email,
     subject: 'Verify your Autozord account',
-    html: `<p>Hi ${firstName},</p><p>Your Autozord verification code is:</p><p style='font-size: 28px; font-weight: bold; letter-spacing: 4px;'>${otp}</p><p>This code expires in ${OTP_TTL_MINUTES} minutes.</p>`,
+    html: wrapEmailHtml(`<p>Hi ${firstName},</p><p>Your Autozord verification code is:</p><p style='font-size: 28px; font-weight: bold; letter-spacing: 4px;'>${otp}</p><p>This code expires in ${OTP_TTL_MINUTES} minutes.</p>`),
     category: 'OTP',
   });
 }

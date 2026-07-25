@@ -131,15 +131,12 @@ export async function forgotPassword(email: string): Promise<void> {
     },
   });
 
+  // NOTE: HTML attributes here must use single quotes, not double quotes -
+  // see the matching note in signup.service.ts.
   await sendEmail({
     to: user.email,
     subject: 'Reset your Autozord password',
-    html: `
-      <p>Hi ${user.firstName},</p>
-      <p>Click the link below to set a new password. This link expires in 1 hour.</p>
-      <p><a href="${CLIENT_URL}/reset-password?token=${rawToken}">Reset your password</a></p>
-      <p>If you didn't request this, you can safely ignore this email.</p>
-    `,
+    html: `<p>Hi ${user.firstName},</p><p>Click the link below to set a new password. This link expires in 1 hour.</p><p><a href='${CLIENT_URL}/reset-password?token=${rawToken}'>Reset your password</a></p><p>If you didn't request this, you can safely ignore this email.</p>`,
     category: 'PASSWORD_RESET',
   });
 }

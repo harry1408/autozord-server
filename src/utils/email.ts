@@ -19,6 +19,16 @@ interface LambdaResponse {
   body: string; // JSON-encoded string: { success: boolean; message: string }
 }
 
+// The Lambda's API Gateway integration corrupts the JSON payload whenever a
+// field value contains a `"` or an embedded newline (even though the JSON
+// itself is perfectly valid - this is a mapping-template bug on the AWS
+// side, confirmed by testing, not something fixable here). Neutralize both
+// so a future multi-line template or a literal quote in content can't
+// silently break delivery again.
+function sanitizeForLambda(text: string): string {
+  return text.replace(/"/g, "'").replace(/\s*\n\s*/g, ' ');
+}
+
 // Render can't establish an outbound SMTP connection to Hostinger's mail
 // server from this Node process, or from a separate Python service also
 // hosted on Render (confirmed: connection timeout / network unreachable
@@ -45,8 +55,8 @@ export async function sendEmail(opts: { to: string; subject: string; html: strin
         sender_email: EMAIL_USER,
         sender_password: EMAIL_PASSWORD,
         recipient_email: opts.to,
-        subject: opts.subject,
-        body: opts.html,
+        subject: sanitizeForLambda(opts.subject),
+        body: sanitizeForLambda(opts.html),
       }),
     });
   } catch (err) {

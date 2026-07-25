@@ -15,16 +15,14 @@ function generateOtp(): string {
   return String(Math.floor(100000 + Math.random() * 900000));
 }
 
+// NOTE: HTML attributes here must use single quotes, not double quotes.
+// The email-sending Lambda's API Gateway uses a template that corrupts the
+// JSON payload whenever a `"` appears inside a field value.
 async function sendOtpEmail(email: string, firstName: string, otp: string): Promise<void> {
   await sendEmail({
     to: email,
     subject: 'Verify your Autozord account',
-    html: `
-      <p>Hi ${firstName},</p>
-      <p>Your Autozord verification code is:</p>
-      <p style="font-size: 28px; font-weight: bold; letter-spacing: 4px;">${otp}</p>
-      <p>This code expires in ${OTP_TTL_MINUTES} minutes.</p>
-    `,
+    html: `<p>Hi ${firstName},</p><p>Your Autozord verification code is:</p><p style='font-size: 28px; font-weight: bold; letter-spacing: 4px;'>${otp}</p><p>This code expires in ${OTP_TTL_MINUTES} minutes.</p>`,
     category: 'OTP',
   });
 }

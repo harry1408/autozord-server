@@ -39,7 +39,34 @@ export async function signup(req: Request, res: Response, next: NextFunction): P
     res.status(201).json({
       success: true,
       data,
-      message: 'Signup received. We\'ll verify your account and email you once you can log in.',
+      message: 'Check your email for a verification code.',
     });
+  } catch (err) { next(err); }
+}
+
+export async function verifyOtp(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const { email, otp } = req.body;
+    if (!email || !otp) {
+      res.status(400).json({ success: false, message: 'Email and code are required' });
+      return;
+    }
+    await signupService.verifyOtp(email, otp);
+    res.json({
+      success: true,
+      message: 'Email verified. We\'ll verify your account and email you once you can log in.',
+    });
+  } catch (err) { next(err); }
+}
+
+export async function resendOtp(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const { email } = req.body;
+    if (!email) {
+      res.status(400).json({ success: false, message: 'Email is required' });
+      return;
+    }
+    await signupService.resendOtp(email);
+    res.json({ success: true, message: 'A new code has been sent.' });
   } catch (err) { next(err); }
 }

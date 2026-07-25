@@ -1,9 +1,25 @@
 import { prisma } from '../utils/prisma';
 import { AppError } from '../middleware/errorHandler';
 import bcrypt from 'bcryptjs';
+import crypto from 'crypto';
 
 function slugify(name: string): string {
   return name.toLowerCase().trim().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
+}
+
+function generateTempPassword(): string {
+  return crypto.randomBytes(9).toString('base64').replace(/[+/=]/g, '').slice(0, 12) + 'A1!';
+}
+
+export async function resetUserPassword(id: string) {
+  const user = await prisma.user.findFirst({ where: { id, deletedAt: null } });
+  if (!user) throw new AppError('User not found', 404);
+
+  const password = generateTempPassword();
+  const passwordHash = await bcrypt.hash(password, 10);
+  await prisma.user.update({ where: { id }, data: { passwordHash, refreshToken: null } });
+
+  return { password };
 }
 
 export async function getShops() {

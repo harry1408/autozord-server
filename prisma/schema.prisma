@@ -79,6 +79,17 @@ model User {
   updatedAt    DateTime  @updatedAt
   deletedAt    DateTime?
 
+  // emailVerifiedAt defaults to now() so every pre-existing/admin-created
+  // user is grandfathered as verified; only public self-signup explicitly
+  // passes null. OTP is stored plaintext (short TTL + rate limiting makes
+  // brute force infeasible); the password reset token is stored hashed
+  // since it's a real bearer capability, not a short numeric code.
+  emailVerifiedAt        DateTime? @default(now())
+  emailOtp               String?
+  emailOtpExpiresAt      DateTime?
+  passwordResetTokenHash String?
+  passwordResetExpiresAt DateTime?
+
   shop               Shop?             @relation(fields: [shopId], references: [id])
   technician         Technician?
   roStatusHistories  ROStatusHistory[]

@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import rateLimit from 'express-rate-limit';
-import { getPublicShops, createInquiry, signup } from '../controllers/public.controller';
+import { getPublicShops, createInquiry, signup, verifyOtp, resendOtp } from '../controllers/public.controller';
 
 const router = Router();
 
@@ -22,8 +22,18 @@ const signupLimiter = rateLimit({
   message: { success: false, message: 'Too many signup attempts. Please try again later.' },
 });
 
+const otpLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 10,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { success: false, message: 'Too many attempts. Please try again later.' },
+});
+
 router.get('/shops', getPublicShops);
 router.post('/inquiries', inquiryLimiter, createInquiry);
 router.post('/signup', signupLimiter, signup);
+router.post('/verify-otp', otpLimiter, verifyOtp);
+router.post('/resend-otp', otpLimiter, resendOtp);
 
 export default router;

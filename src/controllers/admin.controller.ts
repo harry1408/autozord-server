@@ -44,3 +44,9 @@ export async function getInquiries(req: Request, res: Response, next: NextFuncti
     res.json({ success: true, data: await inquiryService.getInquiries(req.user!.shopId) });
   } catch (err) { next(err); }
 }
+
+export async function resetUserPassword(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    res.json({ success: true, data: await adminService.resetUserPassword(req.params.id) });
+  } catch (err) { next(err); }
+}

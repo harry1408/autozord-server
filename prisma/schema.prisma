@@ -485,6 +485,19 @@ model InquiryShop {
   @@index([shopId])
 }
 
+model EmailLog {
+  id           String   @id @default(uuid())
+  to           String
+  subject      String
+  category     String // 'OTP' | 'PASSWORD_RESET' | 'GENERIC'
+  status       String // 'SENT' | 'FAILED'
+  errorMessage String?
+  createdAt    DateTime @default(now())
+
+  @@index([to])
+  @@index([createdAt])
+}
+
 // ─────────────────────────────────────────────────────────────────────────
 // STAGE B (apply AFTER backfill-shop.ts has run successfully) — change:
 //   User.shopId, Customer.shopId, Vehicle.shopId, Technician.shopId,

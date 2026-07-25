@@ -11,6 +11,13 @@ function generateTempPassword(): string {
   return crypto.randomBytes(9).toString('base64').replace(/[+/=]/g, '').slice(0, 12) + 'A1!';
 }
 
+export async function getEmailLogs() {
+  return prisma.emailLog.findMany({
+    orderBy: { createdAt: 'desc' },
+    take: 200,
+  });
+}
+
 export async function resetUserPassword(id: string) {
   const user = await prisma.user.findFirst({ where: { id, deletedAt: null } });
   if (!user) throw new AppError('User not found', 404);

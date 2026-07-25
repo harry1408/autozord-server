@@ -50,3 +50,9 @@ export async function resetUserPassword(req: Request, res: Response, next: NextF
     res.json({ success: true, data: await adminService.resetUserPassword(req.params.id) });
   } catch (err) { next(err); }
 }
+
+export async function getEmailLogs(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    res.json({ success: true, data: await adminService.getEmailLogs() });
+  } catch (err) { next(err); }
+}

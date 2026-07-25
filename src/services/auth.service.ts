@@ -140,6 +140,7 @@ export async function forgotPassword(email: string): Promise<void> {
       <p><a href="${CLIENT_URL}/reset-password?token=${rawToken}">Reset your password</a></p>
       <p>If you didn't request this, you can safely ignore this email.</p>
     `,
+    category: 'PASSWORD_RESET',
   });
 }
 

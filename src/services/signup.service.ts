@@ -25,6 +25,7 @@ async function sendOtpEmail(email: string, firstName: string, otp: string): Prom
       <p style="font-size: 28px; font-weight: bold; letter-spacing: 4px;">${otp}</p>
       <p>This code expires in ${OTP_TTL_MINUTES} minutes.</p>
     `,
+    category: 'OTP',
   });
 }
 

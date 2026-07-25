@@ -1,5 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import * as adminService from '../services/admin.service';
+import * as inquiryService from '../services/inquiry.service';
 
 export async function getShops(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
@@ -35,5 +36,11 @@ export async function deleteShop(req: Request, res: Response, next: NextFunction
 export async function getUsers(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
     res.json({ success: true, data: await adminService.getUsers() });
+  } catch (err) { next(err); }
+}
+
+export async function getInquiries(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    res.json({ success: true, data: await inquiryService.getInquiries(req.user!.shopId) });
   } catch (err) { next(err); }
 }

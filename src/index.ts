@@ -27,6 +27,8 @@ import settingsRoutes from './routes/settings.routes';
 import userRoutes from './routes/user.routes';
 import dashboardRoutes from './routes/dashboard.routes';
 import adminRoutes from './routes/admin.routes';
+import publicRoutes from './routes/public.routes';
+import inquiryRoutes from './routes/inquiry.routes';
 
 const app = express();
 const PORT = process.env.PORT || 4000;
@@ -70,6 +72,8 @@ app.use('/api/reports', reportRoutes);
 app.use('/api/settings', settingsRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/admin', adminRoutes);
+app.use('/api/public', publicRoutes);
+app.use('/api/inquiries', inquiryRoutes);
 
 app.get('/api/health', (_req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });

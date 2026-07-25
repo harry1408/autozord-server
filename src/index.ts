@@ -33,6 +33,11 @@ import inquiryRoutes from './routes/inquiry.routes';
 const app = express();
 const PORT = process.env.PORT || 4000;
 
+// Render sits in front of this app as a reverse proxy and sets
+// X-Forwarded-For; without this, express-rate-limit can't safely derive
+// the real client IP and throws on every request that hits a rate limiter.
+app.set('trust proxy', 1);
+
 // Ensure uploads directory exists
 const uploadsDir = path.join(__dirname, '../../uploads');
 if (!fs.existsSync(uploadsDir)) {

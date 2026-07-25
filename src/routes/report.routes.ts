@@ -3,7 +3,7 @@ import { getRevenue, getRepairOrdersReport, getTechnicianReport, getInventoryRep
 import { authenticate, authorize } from '../middleware/auth';
 
 const router = Router();
-router.use(authenticate, authorize('ADMIN', 'MANAGER'));
+router.use(authenticate, authorize('SHOP_ADMIN', 'MANAGER'));
 
 router.get('/revenue', getRevenue);
 router.get('/repair-orders', getRepairOrdersReport);

@@ -1,18 +1,20 @@
 import { prisma } from '../utils/prisma';
 import { AppError } from '../middleware/errorHandler';
+import { shopScope } from '../utils/helpers';
 import bcrypt from 'bcryptjs';
 
-export async function getUsers() {
+export async function getUsers(shopId: string | null) {
   return prisma.user.findMany({
-    where: { deletedAt: null },
-    select: { id: true, email: true, firstName: true, lastName: true, role: true, isActive: true, createdAt: true },
+    where: { ...shopScope(shopId), deletedAt: null },
+    select: { id: true, email: true, firstName: true, lastName: true, role: true, shopId: true, isActive: true, createdAt: true },
     orderBy: { createdAt: 'desc' },
   });
 }
 
 export async function createUser(data: {
   email: string; password: string; firstName: string; lastName: string; role: string;
-}) {
+}, shopId: string | null) {
+  if (!shopId) throw new AppError('A shop context is required to create a user', 400);
   const existing = await prisma.user.findUnique({ where: { email: data.email } });
   if (existing) throw new AppError('Email already in use', 400);
 
@@ -24,8 +26,9 @@ export async function createUser(data: {
       firstName: data.firstName,
       lastName: data.lastName,
       role: data.role ?? 'RECEPTIONIST',
+      shopId,
     },
-    select: { id: true, email: true, firstName: true, lastName: true, role: true, isActive: true, createdAt: true },
+    select: { id: true, email: true, firstName: true, lastName: true, role: true, shopId: true, isActive: true, createdAt: true },
   });
 
   return user;
@@ -33,8 +36,8 @@ export async function createUser(data: {
 
 export async function updateUser(id: string, data: Partial<{
   firstName: string; lastName: string; email: string; role: string; isActive: boolean; password: string;
-}>) {
-  const existing = await prisma.user.findFirst({ where: { id, deletedAt: null } });
+}>, shopId: string | null) {
+  const existing = await prisma.user.findFirst({ where: { id, ...shopScope(shopId), deletedAt: null } });
   if (!existing) throw new AppError('User not found', 404);
 
   const updateData: Record<string, unknown> = { ...data };
@@ -46,12 +49,12 @@ export async function updateUser(id: string, data: Partial<{
   return prisma.user.update({
     where: { id },
     data: updateData,
-    select: { id: true, email: true, firstName: true, lastName: true, role: true, isActive: true },
+    select: { id: true, email: true, firstName: true, lastName: true, role: true, shopId: true, isActive: true },
   });
 }
 
-export async function deleteUser(id: string) {
-  const existing = await prisma.user.findFirst({ where: { id, deletedAt: null } });
+export async function deleteUser(id: string, shopId: string | null) {
+  const existing = await prisma.user.findFirst({ where: { id, ...shopScope(shopId), deletedAt: null } });
   if (!existing) throw new AppError('User not found', 404);
   return prisma.user.update({ where: { id }, data: { isActive: false } });
 }

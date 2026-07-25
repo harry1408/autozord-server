@@ -6,9 +6,9 @@ const router = Router();
 router.use(authenticate);
 
 router.get('/', getTechnicians);
-router.post('/', authorize('ADMIN', 'MANAGER'), createTechnician);
+router.post('/', authorize('SHOP_ADMIN', 'MANAGER'), createTechnician);
 router.get('/:id', getTechnician);
-router.put('/:id', authorize('ADMIN', 'MANAGER'), updateTechnician);
-router.delete('/:id', authorize('ADMIN'), deleteTechnician);
+router.put('/:id', authorize('SHOP_ADMIN', 'MANAGER'), updateTechnician);
+router.delete('/:id', authorize('SHOP_ADMIN'), deleteTechnician);
 
 export default router;

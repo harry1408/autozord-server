@@ -8,13 +8,14 @@ import {
   JwtPayload,
 } from '../middleware/auth';
 
-function sanitizeUser(user: { id: string; email: string; firstName: string; lastName: string; role: string; isActive: boolean }) {
+function sanitizeUser(user: { id: string; email: string; firstName: string; lastName: string; role: string; shopId: string | null; isActive: boolean }) {
   return {
     id: user.id,
     email: user.email,
     firstName: user.firstName,
     lastName: user.lastName,
     role: user.role,
+    shopId: user.shopId,
     isActive: user.isActive,
   };
 }
@@ -30,7 +31,7 @@ export async function login(email: string, password: string) {
     throw new AppError('Invalid credentials', 401);
   }
 
-  const payload: JwtPayload = { userId: user.id, email: user.email, role: user.role };
+  const payload: JwtPayload = { userId: user.id, email: user.email, role: user.role, shopId: user.shopId };
   const accessToken = generateAccessToken(payload);
   const refreshToken = generateRefreshToken(payload);
 
@@ -61,7 +62,7 @@ export async function refresh(refreshToken: string) {
     throw new AppError('Invalid refresh token', 401);
   }
 
-  const newPayload: JwtPayload = { userId: user.id, email: user.email, role: user.role };
+  const newPayload: JwtPayload = { userId: user.id, email: user.email, role: user.role, shopId: user.shopId };
   const newAccessToken = generateAccessToken(newPayload);
   const newRefreshToken = generateRefreshToken(newPayload);
 

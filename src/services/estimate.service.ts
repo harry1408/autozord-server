@@ -1,6 +1,6 @@
 import { prisma } from '../utils/prisma';
 import { AppError } from '../middleware/errorHandler';
-import { paginate, buildPaginationMeta, generateEstimateNumber, generateRoNumber } from '../utils/helpers';
+import { paginate, buildPaginationMeta, generateEstimateNumber, generateRoNumber, shopScope } from '../utils/helpers';
 
 const ESTIMATE_INCLUDE = {
   customer: { select: { id: true, firstName: true, lastName: true, phone: true } },
@@ -9,12 +9,13 @@ const ESTIMATE_INCLUDE = {
 };
 
 export async function getEstimates(params: {
+  shopId: string | null;
   search?: string; status?: string; customerId?: string;
   page: number; limit: number; sortBy: string; sortOrder: 'asc' | 'desc';
 }) {
-  const { search, status, customerId, page, limit, sortBy, sortOrder } = params;
+  const { shopId, search, status, customerId, page, limit, sortBy, sortOrder } = params;
   const { take, skip } = paginate(page, limit);
-  const where: Record<string, unknown> = { deletedAt: null };
+  const where: Record<string, unknown> = { ...shopScope(shopId), deletedAt: null };
   if (status) where.status = status;
   if (customerId) where.customerId = customerId;
   if (search) {
@@ -34,8 +35,8 @@ export async function getEstimates(params: {
   return { data, pagination: buildPaginationMeta(total, page, take) };
 }
 
-export async function getEstimate(id: string) {
-  const est = await prisma.estimate.findFirst({ where: { id, deletedAt: null }, include: ESTIMATE_INCLUDE });
+export async function getEstimate(id: string, shopId: string | null) {
+  const est = await prisma.estimate.findFirst({ where: { id, ...shopScope(shopId), deletedAt: null }, include: ESTIMATE_INCLUDE });
   if (!est) throw new AppError('Estimate not found', 404);
   return est;
 }
@@ -44,21 +45,23 @@ export async function createEstimate(data: {
   customerId: string; vehicleId?: string; notes?: string; expiryDate?: string;
   laborLines?: { description: string; hours: number; rate: number }[];
   partsLines?: { name: string; partNumber?: string; quantity: number; unitCost: number; sellingPrice: number }[];
-}) {
+}, shopId: string | null) {
   if (!data.customerId) throw new AppError('Customer is required', 400);
+  if (!shopId) throw new AppError('A shop context is required to create an estimate', 400);
   const estimateNumber = generateEstimateNumber();
   return prisma.estimate.create({
     data: {
+      shopId,
       estimateNumber,
       customerId: data.customerId,
       vehicleId: data.vehicleId,
       notes: data.notes,
       expiryDate: data.expiryDate ? new Date(data.expiryDate) : undefined,
       laborLines: data.laborLines ? {
-        create: data.laborLines.map(l => ({ ...l, subtotal: l.hours * l.rate })),
+        create: data.laborLines.map(l => ({ ...l, shopId, subtotal: l.hours * l.rate })),
       } : undefined,
       partsLines: data.partsLines ? {
-        create: data.partsLines.map(p => ({ ...p, subtotal: p.quantity * p.sellingPrice })),
+        create: data.partsLines.map(p => ({ ...p, shopId, subtotal: p.quantity * p.sellingPrice })),
       } : undefined,
     },
     include: ESTIMATE_INCLUDE,
@@ -67,8 +70,8 @@ export async function createEstimate(data: {
 
 export async function updateEstimate(id: string, data: Partial<{
   notes: string; expiryDate: string; status: string;
-}>) {
-  const existing = await prisma.estimate.findFirst({ where: { id, deletedAt: null } });
+}>, shopId: string | null) {
+  const existing = await prisma.estimate.findFirst({ where: { id, ...shopScope(shopId), deletedAt: null } });
   if (!existing) throw new AppError('Estimate not found', 404);
   return prisma.estimate.update({
     where: { id },
@@ -77,23 +80,23 @@ export async function updateEstimate(id: string, data: Partial<{
   });
 }
 
-export async function deleteEstimate(id: string) {
-  const existing = await prisma.estimate.findFirst({ where: { id, deletedAt: null } });
+export async function deleteEstimate(id: string, shopId: string | null) {
+  const existing = await prisma.estimate.findFirst({ where: { id, ...shopScope(shopId), deletedAt: null } });
   if (!existing) throw new AppError('Estimate not found', 404);
   return prisma.estimate.update({ where: { id }, data: { deletedAt: new Date() } });
 }
 
-export async function updateStatus(id: string, status: string) {
+export async function updateStatus(id: string, status: string, shopId: string | null) {
   const valid = ['DRAFT', 'SENT', 'APPROVED', 'DECLINED', 'EXPIRED'];
   if (!valid.includes(status)) throw new AppError('Invalid status', 400);
-  const existing = await prisma.estimate.findFirst({ where: { id, deletedAt: null } });
+  const existing = await prisma.estimate.findFirst({ where: { id, ...shopScope(shopId), deletedAt: null } });
   if (!existing) throw new AppError('Estimate not found', 404);
   return prisma.estimate.update({ where: { id }, data: { status }, include: ESTIMATE_INCLUDE });
 }
 
-export async function convertToRO(estimateId: string, userId: string) {
+export async function convertToRO(estimateId: string, userId: string, shopId: string | null) {
   const estimate = await prisma.estimate.findFirst({
-    where: { id: estimateId, deletedAt: null },
+    where: { id: estimateId, ...shopScope(shopId), deletedAt: null },
     include: { laborLines: true, partsLines: true },
   });
   if (!estimate) throw new AppError('Estimate not found', 404);
@@ -102,22 +105,23 @@ export async function convertToRO(estimateId: string, userId: string) {
   const roNumber = generateRoNumber();
   const ro = await prisma.repairOrder.create({
     data: {
+      shopId: estimate.shopId,
       roNumber,
       customerId: estimate.customerId,
       vehicleId: estimate.vehicleId,
       status: 'APPROVED',
       laborLines: {
         create: estimate.laborLines.map(l => ({
-          description: l.description, hours: l.hours, rate: l.rate, subtotal: l.subtotal,
+          shopId: estimate.shopId, description: l.description, hours: l.hours, rate: l.rate, subtotal: l.subtotal,
         })),
       },
       partsLines: {
         create: estimate.partsLines.map(p => ({
-          name: p.name, partNumber: p.partNumber ?? undefined, quantity: p.quantity,
+          shopId: estimate.shopId, name: p.name, partNumber: p.partNumber ?? undefined, quantity: p.quantity,
           unitCost: p.unitCost, sellingPrice: p.sellingPrice, subtotal: p.subtotal,
         })),
       },
-      statusHistory: { create: { fromStatus: null, toStatus: 'APPROVED', changedById: userId } },
+      statusHistory: { create: { shopId: estimate.shopId, fromStatus: null, toStatus: 'APPROVED', changedById: userId } },
     },
   });
 

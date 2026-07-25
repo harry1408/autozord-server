@@ -1,6 +1,6 @@
 import { prisma } from '../utils/prisma';
 import { AppError } from '../middleware/errorHandler';
-import { paginate, buildPaginationMeta } from '../utils/helpers';
+import { paginate, buildPaginationMeta, shopScope } from '../utils/helpers';
 import bcrypt from 'bcryptjs';
 
 const TECH_INCLUDE = {
@@ -14,23 +14,25 @@ const TECH_INCLUDE = {
   },
 };
 
-export async function getTechnicians({ page, limit }: { page: number; limit: number }) {
+export async function getTechnicians({ shopId, page, limit }: { shopId: string | null; page: number; limit: number }) {
   const { take, skip } = paginate(page, limit);
+  const where = shopScope(shopId);
   const [data, total] = await Promise.all([
     prisma.technician.findMany({
+      where,
       take, skip, orderBy: { createdAt: 'desc' },
       include: {
         user: { select: { firstName: true, lastName: true, email: true, isActive: true } },
         _count: { select: { assignments: true } },
       },
     }),
-    prisma.technician.count(),
+    prisma.technician.count({ where }),
   ]);
   return { data, pagination: buildPaginationMeta(total, page, take) };
 }
 
-export async function getTechnician(id: string) {
-  const tech = await prisma.technician.findFirst({ where: { id }, include: TECH_INCLUDE });
+export async function getTechnician(id: string, shopId: string | null) {
+  const tech = await prisma.technician.findFirst({ where: { id, ...shopScope(shopId) }, include: TECH_INCLUDE });
   if (!tech) throw new AppError('Technician not found', 404);
   return tech;
 }
@@ -38,7 +40,8 @@ export async function getTechnician(id: string) {
 export async function createTechnician(data: {
   firstName: string; lastName: string; email: string; password: string;
   specializations?: string; hourlyRate?: number;
-}) {
+}, shopId: string | null) {
+  if (!shopId) throw new AppError('A shop context is required to create a technician', 400);
   const existing = await prisma.user.findUnique({ where: { email: data.email } });
   if (existing) throw new AppError('Email already in use', 400);
 
@@ -50,11 +53,13 @@ export async function createTechnician(data: {
       firstName: data.firstName,
       lastName: data.lastName,
       role: 'TECHNICIAN',
+      shopId,
     },
   });
 
   return prisma.technician.create({
     data: {
+      shopId,
       userId: user.id,
       specializations: data.specializations,
       hourlyRate: data.hourlyRate ?? 0,
@@ -65,8 +70,8 @@ export async function createTechnician(data: {
 
 export async function updateTechnician(id: string, data: Partial<{
   firstName: string; lastName: string; specializations: string; hourlyRate: number; isActive: boolean;
-}>) {
-  const tech = await prisma.technician.findFirst({ where: { id } });
+}>, shopId: string | null) {
+  const tech = await prisma.technician.findFirst({ where: { id, ...shopScope(shopId) } });
   if (!tech) throw new AppError('Technician not found', 404);
 
   const { firstName, lastName, ...techData } = data;
@@ -81,8 +86,8 @@ export async function updateTechnician(id: string, data: Partial<{
   return prisma.technician.update({ where: { id }, data: techData, include: TECH_INCLUDE });
 }
 
-export async function deleteTechnician(id: string) {
-  const tech = await prisma.technician.findFirst({ where: { id } });
+export async function deleteTechnician(id: string, shopId: string | null) {
+  const tech = await prisma.technician.findFirst({ where: { id, ...shopScope(shopId) } });
   if (!tech) throw new AppError('Technician not found', 404);
   return prisma.technician.update({ where: { id }, data: { isActive: false } });
 }

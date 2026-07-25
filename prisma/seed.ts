@@ -6,12 +6,27 @@ const prisma = new PrismaClient();
 async function main() {
   console.log('Seeding database...');
 
+  // Shop
+  const shop = await prisma.shop.upsert({
+    where: { slug: 'autoshop360' },
+    update: {},
+    create: {
+      id: 'seed-shop-001',
+      slug: 'autoshop360',
+      name: 'AutoShop360',
+      address: '123 Main Street, Springfield, IL 62701',
+      phone: '(555) 555-0100',
+      email: 'info@autoshop360.com',
+    },
+  });
+
   // Shop settings
   await prisma.shopSettings.upsert({
     where: { id: 'default' },
     update: {},
     create: {
       id: 'default',
+      shopId: shop.id,
       shopName: 'AutoShop360',
       address: '123 Main Street, Springfield, IL 62701',
       phone: '(555) 555-0100',
@@ -32,7 +47,8 @@ async function main() {
       passwordHash: adminHash,
       firstName: 'Alex',
       lastName: 'Johnson',
-      role: 'ADMIN',
+      role: 'SHOP_ADMIN',
+      shopId: shop.id,
       isActive: true,
     },
   });
@@ -49,6 +65,7 @@ async function main() {
       firstName: 'Sarah',
       lastName: 'Williams',
       role: 'MANAGER',
+      shopId: shop.id,
       isActive: true,
     },
   });
@@ -65,6 +82,7 @@ async function main() {
       firstName: 'Mike',
       lastName: 'Torres',
       role: 'TECHNICIAN',
+      shopId: shop.id,
       isActive: true,
     },
   });
@@ -79,6 +97,7 @@ async function main() {
       firstName: 'Lisa',
       lastName: 'Chen',
       role: 'TECHNICIAN',
+      shopId: shop.id,
       isActive: true,
     },
   });
@@ -95,6 +114,24 @@ async function main() {
       firstName: 'Jordan',
       lastName: 'Smith',
       role: 'RECEPTIONIST',
+      shopId: shop.id,
+      isActive: true,
+    },
+  });
+
+  // Global admin (platform-level, not tied to any shop)
+  const globalAdminHash = await bcrypt.hash('GlobalAdmin@123', 10);
+  await prisma.user.upsert({
+    where: { email: 'platform@autozord.com' },
+    update: {},
+    create: {
+      id: 'seed-global-admin-001',
+      email: 'platform@autozord.com',
+      passwordHash: globalAdminHash,
+      firstName: 'Platform',
+      lastName: 'Owner',
+      role: 'GLOBAL_ADMIN',
+      shopId: null,
       isActive: true,
     },
   });
@@ -105,6 +142,7 @@ async function main() {
     update: {},
     create: {
       id: 'seed-tech-001',
+      shopId: shop.id,
       userId: tech1User.id,
       specializations: 'Engine, Transmission, Brakes',
       hourlyRate: 75,
@@ -117,6 +155,7 @@ async function main() {
     update: {},
     create: {
       id: 'seed-tech-002',
+      shopId: shop.id,
       userId: tech2User.id,
       specializations: 'Electrical, AC, Diagnostics',
       hourlyRate: 80,
@@ -130,6 +169,7 @@ async function main() {
     update: {},
     create: {
       id: 'seed-cust-001',
+      shopId: shop.id,
       firstName: 'Robert',
       lastName: 'Martinez',
       email: 'robert.martinez@email.com',
@@ -146,6 +186,7 @@ async function main() {
     update: {},
     create: {
       id: 'seed-cust-002',
+      shopId: shop.id,
       firstName: 'Jennifer',
       lastName: 'Davis',
       email: 'jennifer.davis@email.com',
@@ -162,6 +203,7 @@ async function main() {
     update: {},
     create: {
       id: 'seed-cust-003',
+      shopId: shop.id,
       firstName: 'David',
       lastName: 'Wilson',
       email: 'david.wilson@email.com',
@@ -179,6 +221,7 @@ async function main() {
     update: {},
     create: {
       id: 'seed-veh-001',
+      shopId: shop.id,
       customerId: customer1.id,
       make: 'Toyota',
       model: 'Camry',
@@ -195,6 +238,7 @@ async function main() {
     update: {},
     create: {
       id: 'seed-veh-002',
+      shopId: shop.id,
       customerId: customer2.id,
       make: 'Honda',
       model: 'CR-V',
@@ -211,6 +255,7 @@ async function main() {
     update: {},
     create: {
       id: 'seed-veh-003',
+      shopId: shop.id,
       customerId: customer3.id,
       make: 'Ford',
       model: 'F-150',
@@ -228,6 +273,7 @@ async function main() {
     update: {},
     create: {
       id: 'seed-sup-001',
+      shopId: shop.id,
       name: 'AutoParts Pro',
       contact: 'Tom Green',
       phone: '(800) 555-0101',
@@ -241,6 +287,7 @@ async function main() {
     update: {},
     create: {
       id: 'seed-part-001',
+      shopId: shop.id,
       partNumber: 'OIL-5W30-QT',
       name: 'Motor Oil 5W-30 (1 Qt)',
       description: 'Full synthetic motor oil',
@@ -258,6 +305,7 @@ async function main() {
     update: {},
     create: {
       id: 'seed-part-002',
+      shopId: shop.id,
       partNumber: 'FILTER-OIL-UNIV',
       name: 'Oil Filter (Universal)',
       description: 'Premium oil filter',
@@ -275,6 +323,7 @@ async function main() {
     update: {},
     create: {
       id: 'seed-part-003',
+      shopId: shop.id,
       partNumber: 'BRAKE-PAD-FRONT',
       name: 'Brake Pad Set (Front)',
       description: 'Semi-metallic front brake pads',
@@ -292,6 +341,7 @@ async function main() {
     update: {},
     create: {
       id: 'seed-part-004',
+      shopId: shop.id,
       partNumber: 'AIR-FILTER-UNIV',
       name: 'Air Filter (Universal)',
       description: 'High-flow air filter',
@@ -310,6 +360,7 @@ async function main() {
     update: {},
     create: {
       id: 'seed-ro-001',
+      shopId: shop.id,
       roNumber: 'RO-20260601-0001',
       customerId: customer1.id,
       vehicleId: vehicle1.id,
@@ -326,6 +377,7 @@ async function main() {
     update: {},
     create: {
       id: 'seed-labor-001',
+      shopId: shop.id,
       repairOrderId: ro1.id,
       description: 'Front Brake Pad Replacement',
       hours: 1.5,
@@ -339,6 +391,7 @@ async function main() {
     update: {},
     create: {
       id: 'seed-parts-001',
+      shopId: shop.id,
       repairOrderId: ro1.id,
       partId: 'seed-part-003',
       name: 'Brake Pad Set (Front)',
@@ -359,6 +412,7 @@ async function main() {
     },
     update: {},
     create: {
+      shopId: shop.id,
       repairOrderId: ro1.id,
       technicianId: tech1.id,
     },
@@ -366,6 +420,7 @@ async function main() {
 
   await prisma.rOStatusHistory.create({
     data: {
+      shopId: shop.id,
       repairOrderId: ro1.id,
       fromStatus: null,
       toStatus: 'ESTIMATE',
@@ -375,6 +430,7 @@ async function main() {
 
   await prisma.rOStatusHistory.create({
     data: {
+      shopId: shop.id,
       repairOrderId: ro1.id,
       fromStatus: 'ESTIMATE',
       toStatus: 'APPROVED',
@@ -384,6 +440,7 @@ async function main() {
 
   await prisma.rOStatusHistory.create({
     data: {
+      shopId: shop.id,
       repairOrderId: ro1.id,
       fromStatus: 'APPROVED',
       toStatus: 'IN_PROGRESS',
@@ -396,6 +453,7 @@ async function main() {
     update: {},
     create: {
       id: 'seed-ro-002',
+      shopId: shop.id,
       roNumber: 'RO-20260610-0002',
       customerId: customer2.id,
       vehicleId: vehicle2.id,
@@ -411,6 +469,7 @@ async function main() {
     update: {},
     create: {
       id: 'seed-labor-002',
+      shopId: shop.id,
       repairOrderId: ro2.id,
       description: 'Oil Change & Filter',
       hours: 0.5,
@@ -424,6 +483,7 @@ async function main() {
     update: {},
     create: {
       id: 'seed-labor-003',
+      shopId: shop.id,
       repairOrderId: ro2.id,
       description: 'Tire Rotation',
       hours: 0.5,
@@ -435,9 +495,10 @@ async function main() {
   console.log('Seed completed successfully.');
   console.log('');
   console.log('Default accounts:');
-  console.log('  Admin:       admin@autoshop360.com     / Admin@123');
-  console.log('  Manager:     manager@autoshop360.com   / Manager@123');
-  console.log('  Technician:  mike.tech@autoshop360.com / Tech@123');
+  console.log('  Global Admin: platform@autozord.com     / GlobalAdmin@123');
+  console.log('  Shop Admin:   admin@autoshop360.com     / Admin@123');
+  console.log('  Manager:      manager@autoshop360.com   / Manager@123');
+  console.log('  Technician:   mike.tech@autoshop360.com / Tech@123');
   console.log('  Receptionist: reception@autoshop360.com / Rec@123');
 }
 

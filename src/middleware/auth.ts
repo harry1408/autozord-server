@@ -6,6 +6,7 @@ export interface JwtPayload {
   userId: string;
   email: string;
   role: string;
+  shopId: string | null;
 }
 
 declare global {
@@ -38,6 +39,10 @@ export function authorize(...roles: string[]) {
   return (req: Request, _res: Response, next: NextFunction): void => {
     if (!req.user) {
       throw new AppError('Not authenticated', 401);
+    }
+    if (req.user.role === 'GLOBAL_ADMIN') {
+      next();
+      return;
     }
     if (roles.length && !roles.includes(req.user.role)) {
       throw new AppError('Insufficient permissions', 403);

@@ -5,6 +5,7 @@ export async function getPayments(req: Request, res: Response, next: NextFunctio
   try {
     const { page = '1', limit = '20' } = req.query;
     const result = await paymentService.getPayments({
+      shopId: req.user!.shopId,
       page: parseInt(page as string), limit: parseInt(limit as string),
     });
     res.json({ success: true, ...result });
@@ -13,12 +14,12 @@ export async function getPayments(req: Request, res: Response, next: NextFunctio
 
 export async function createPayment(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
-    res.status(201).json({ success: true, data: await paymentService.createPayment(req.body) });
+    res.status(201).json({ success: true, data: await paymentService.createPayment(req.body, req.user!.shopId) });
   } catch (err) { next(err); }
 }
 
 export async function getInvoicePayments(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
-    res.json({ success: true, data: await paymentService.getInvoicePayments(req.params.invoiceId) });
+    res.json({ success: true, data: await paymentService.getInvoicePayments(req.params.invoiceId, req.user!.shopId) });
   } catch (err) { next(err); }
 }

@@ -1,6 +1,6 @@
 import { prisma } from '../utils/prisma';
 import { AppError } from '../middleware/errorHandler';
-import { paginate, buildPaginationMeta, generateRoNumber } from '../utils/helpers';
+import { paginate, buildPaginationMeta, generateRoNumber, shopScope } from '../utils/helpers';
 
 const RO_INCLUDE = {
   customer: { select: { id: true, firstName: true, lastName: true, phone: true, email: true } },
@@ -25,6 +25,7 @@ const RO_INCLUDE = {
 const VALID_STATUSES = ['ESTIMATE', 'APPROVED', 'IN_PROGRESS', 'WAITING_PARTS', 'QUALITY_CHECK', 'COMPLETED', 'INVOICED', 'CLOSED', 'CANCELLED'];
 
 export async function getRepairOrders(params: {
+  shopId: string | null;
   search?: string;
   status?: string;
   customerId?: string;
@@ -35,10 +36,10 @@ export async function getRepairOrders(params: {
   sortBy: string;
   sortOrder: 'asc' | 'desc';
 }) {
-  const { search, status, customerId, vehicleId, technicianId, page, limit, sortBy, sortOrder } = params;
+  const { shopId, search, status, customerId, vehicleId, technicianId, page, limit, sortBy, sortOrder } = params;
   const { take, skip } = paginate(page, limit);
 
-  const where: Record<string, unknown> = { deletedAt: null };
+  const where: Record<string, unknown> = { ...shopScope(shopId), deletedAt: null };
   if (status) {
     where.status = status.includes(',')
       ? { in: status.split(',').map(s => s.trim()) }
@@ -81,9 +82,9 @@ export async function getRepairOrders(params: {
   return { data, pagination: buildPaginationMeta(total, page, take) };
 }
 
-export async function getRepairOrder(id: string) {
+export async function getRepairOrder(id: string, shopId: string | null) {
   const ro = await prisma.repairOrder.findFirst({
-    where: { id, deletedAt: null },
+    where: { id, ...shopScope(shopId), deletedAt: null },
     include: RO_INCLUDE,
   });
   if (!ro) throw new AppError('Repair order not found', 404);
@@ -97,14 +98,16 @@ export async function createRepairOrder(data: {
   mileageIn?: number;
   customerNotes?: string;
   internalNotes?: string;
-}, userId: string) {
+}, userId: string, shopId: string | null) {
   if (!data.customerId || !data.vehicleId) {
     throw new AppError('Customer and vehicle are required', 400);
   }
+  if (!shopId) throw new AppError('A shop context is required to create a repair order', 400);
 
   const roNumber = generateRoNumber();
   const ro = await prisma.repairOrder.create({
     data: {
+      shopId,
       roNumber,
       customerId: data.customerId,
       vehicleId: data.vehicleId,
@@ -114,7 +117,7 @@ export async function createRepairOrder(data: {
       customerNotes: data.customerNotes,
       internalNotes: data.internalNotes,
       statusHistory: {
-        create: { fromStatus: null, toStatus: 'ESTIMATE', changedById: userId },
+        create: { shopId, fromStatus: null, toStatus: 'ESTIMATE', changedById: userId },
       },
     },
     include: RO_INCLUDE,
@@ -129,8 +132,8 @@ export async function updateRepairOrder(id: string, data: Partial<{
   mileageOut: number;
   customerNotes: string;
   internalNotes: string;
-}>) {
-  const existing = await prisma.repairOrder.findFirst({ where: { id, deletedAt: null } });
+}>, shopId: string | null) {
+  const existing = await prisma.repairOrder.findFirst({ where: { id, ...shopScope(shopId), deletedAt: null } });
   if (!existing) throw new AppError('Repair order not found', 404);
 
   return prisma.repairOrder.update({
@@ -143,23 +146,24 @@ export async function updateRepairOrder(id: string, data: Partial<{
   });
 }
 
-export async function deleteRepairOrder(id: string) {
-  const existing = await prisma.repairOrder.findFirst({ where: { id, deletedAt: null } });
+export async function deleteRepairOrder(id: string, shopId: string | null) {
+  const existing = await prisma.repairOrder.findFirst({ where: { id, ...shopScope(shopId), deletedAt: null } });
   if (!existing) throw new AppError('Repair order not found', 404);
   return prisma.repairOrder.update({ where: { id }, data: { deletedAt: new Date() } });
 }
 
-export async function updateStatus(id: string, newStatus: string, userId: string, note?: string) {
+export async function updateStatus(id: string, newStatus: string, userId: string, shopId: string | null, note?: string) {
   if (!VALID_STATUSES.includes(newStatus)) {
     throw new AppError('Invalid status', 400);
   }
-  const existing = await prisma.repairOrder.findFirst({ where: { id, deletedAt: null } });
+  const existing = await prisma.repairOrder.findFirst({ where: { id, ...shopScope(shopId), deletedAt: null } });
   if (!existing) throw new AppError('Repair order not found', 404);
 
   const [ro] = await prisma.$transaction([
     prisma.repairOrder.update({ where: { id }, data: { status: newStatus }, include: RO_INCLUDE }),
     prisma.rOStatusHistory.create({
       data: {
+        shopId: existing.shopId,
         repairOrderId: id,
         fromStatus: existing.status,
         toStatus: newStatus,
@@ -172,33 +176,36 @@ export async function updateStatus(id: string, newStatus: string, userId: string
   return ro;
 }
 
-export async function assignTechnician(roId: string, technicianId: string) {
-  const ro = await prisma.repairOrder.findFirst({ where: { id: roId, deletedAt: null } });
+export async function assignTechnician(roId: string, technicianId: string, shopId: string | null) {
+  const ro = await prisma.repairOrder.findFirst({ where: { id: roId, ...shopScope(shopId), deletedAt: null } });
   if (!ro) throw new AppError('Repair order not found', 404);
-  const tech = await prisma.technician.findFirst({ where: { id: technicianId, isActive: true } });
+  const tech = await prisma.technician.findFirst({ where: { id: technicianId, ...shopScope(shopId), isActive: true } });
   if (!tech) throw new AppError('Technician not found', 404);
 
   await prisma.repairOrderTechnician.upsert({
     where: { repairOrderId_technicianId: { repairOrderId: roId, technicianId } },
     update: {},
-    create: { repairOrderId: roId, technicianId },
+    create: { shopId: ro.shopId, repairOrderId: roId, technicianId },
   });
 
   return prisma.repairOrder.findFirst({ where: { id: roId }, include: RO_INCLUDE });
 }
 
-export async function removeTechnician(roId: string, technicianId: string) {
+export async function removeTechnician(roId: string, technicianId: string, shopId: string | null) {
+  const ro = await prisma.repairOrder.findFirst({ where: { id: roId, ...shopScope(shopId), deletedAt: null } });
+  if (!ro) throw new AppError('Repair order not found', 404);
   await prisma.repairOrderTechnician.deleteMany({
     where: { repairOrderId: roId, technicianId },
   });
 }
 
-export async function addJobLine(roId: string, data: { description: string; discount?: number; partsDiscount?: number }) {
-  const ro = await prisma.repairOrder.findFirst({ where: { id: roId, deletedAt: null } });
+export async function addJobLine(roId: string, data: { description: string; discount?: number; partsDiscount?: number }, shopId: string | null) {
+  const ro = await prisma.repairOrder.findFirst({ where: { id: roId, ...shopScope(shopId), deletedAt: null } });
   if (!ro) throw new AppError('Repair order not found', 404);
   const count = await prisma.jobLine.count({ where: { repairOrderId: roId } });
   return prisma.jobLine.create({
     data: {
+      shopId: ro.shopId,
       repairOrderId: roId,
       description: data.description,
       sortOrder: count,
@@ -208,13 +215,15 @@ export async function addJobLine(roId: string, data: { description: string; disc
   });
 }
 
-export async function updateJobLine(lineId: string, data: { description?: string; discount?: number; partsDiscount?: number }) {
-  const line = await prisma.jobLine.findUnique({ where: { id: lineId } });
+export async function updateJobLine(lineId: string, data: { description?: string; discount?: number; partsDiscount?: number }, shopId: string | null) {
+  const line = await prisma.jobLine.findFirst({ where: { id: lineId, ...shopScope(shopId) } });
   if (!line) throw new AppError('Job line not found', 404);
   return prisma.jobLine.update({ where: { id: lineId }, data });
 }
 
-export async function deleteJobLine(lineId: string) {
+export async function deleteJobLine(lineId: string, shopId: string | null) {
+  const line = await prisma.jobLine.findFirst({ where: { id: lineId, ...shopScope(shopId) } });
+  if (!line) throw new AppError('Job line not found', 404);
   await prisma.jobLine.delete({ where: { id: lineId } });
 }
 
@@ -223,13 +232,13 @@ export async function addLaborLine(roId: string, data: {
   hours: number;
   rate: number;
   jobLineId?: string;
-}) {
-  const ro = await prisma.repairOrder.findFirst({ where: { id: roId, deletedAt: null } });
+}, shopId: string | null) {
+  const ro = await prisma.repairOrder.findFirst({ where: { id: roId, ...shopScope(shopId), deletedAt: null } });
   if (!ro) throw new AppError('Repair order not found', 404);
 
   const subtotal = data.hours * data.rate;
   return prisma.laborLine.create({
-    data: { repairOrderId: roId, ...data, subtotal },
+    data: { shopId: ro.shopId, repairOrderId: roId, ...data, subtotal },
   });
 }
 
@@ -237,8 +246,8 @@ export async function updateLaborLine(lineId: string, data: Partial<{
   description: string;
   hours: number;
   rate: number;
-}>) {
-  const line = await prisma.laborLine.findUnique({ where: { id: lineId } });
+}>, shopId: string | null) {
+  const line = await prisma.laborLine.findFirst({ where: { id: lineId, ...shopScope(shopId) } });
   if (!line) throw new AppError('Labor line not found', 404);
 
   const hours = data.hours ?? line.hours;
@@ -249,7 +258,9 @@ export async function updateLaborLine(lineId: string, data: Partial<{
   });
 }
 
-export async function deleteLaborLine(lineId: string) {
+export async function deleteLaborLine(lineId: string, shopId: string | null) {
+  const line = await prisma.laborLine.findFirst({ where: { id: lineId, ...shopScope(shopId) } });
+  if (!line) throw new AppError('Labor line not found', 404);
   await prisma.laborLine.delete({ where: { id: lineId } });
 }
 
@@ -261,13 +272,13 @@ export async function addPartsLine(roId: string, data: {
   unitCost: number;
   sellingPrice: number;
   jobLineId?: string;
-}) {
-  const ro = await prisma.repairOrder.findFirst({ where: { id: roId, deletedAt: null } });
+}, shopId: string | null) {
+  const ro = await prisma.repairOrder.findFirst({ where: { id: roId, ...shopScope(shopId), deletedAt: null } });
   if (!ro) throw new AppError('Repair order not found', 404);
 
   const subtotal = data.quantity * data.sellingPrice;
   return prisma.partsLine.create({
-    data: { repairOrderId: roId, ...data, subtotal },
+    data: { shopId: ro.shopId, repairOrderId: roId, ...data, subtotal },
   });
 }
 
@@ -277,8 +288,8 @@ export async function updatePartsLine(lineId: string, data: Partial<{
   quantity: number;
   unitCost: number;
   sellingPrice: number;
-}>) {
-  const line = await prisma.partsLine.findUnique({ where: { id: lineId } });
+}>, shopId: string | null) {
+  const line = await prisma.partsLine.findFirst({ where: { id: lineId, ...shopScope(shopId) } });
   if (!line) throw new AppError('Parts line not found', 404);
 
   const qty = data.quantity ?? line.quantity;
@@ -289,6 +300,8 @@ export async function updatePartsLine(lineId: string, data: Partial<{
   });
 }
 
-export async function deletePartsLine(lineId: string) {
+export async function deletePartsLine(lineId: string, shopId: string | null) {
+  const line = await prisma.partsLine.findFirst({ where: { id: lineId, ...shopScope(shopId) } });
+  if (!line) throw new AppError('Parts line not found', 404);
   await prisma.partsLine.delete({ where: { id: lineId } });
 }

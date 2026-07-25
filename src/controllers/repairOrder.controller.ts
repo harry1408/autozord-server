@@ -5,6 +5,7 @@ export async function getRepairOrders(req: Request, res: Response, next: NextFun
   try {
     const { search, status, customerId, vehicleId, technicianId, page = '1', limit = '20', sortBy = 'createdAt', sortOrder = 'desc' } = req.query;
     const result = await roService.getRepairOrders({
+      shopId: req.user!.shopId,
       search: search as string,
       status: status as string,
       customerId: customerId as string,
@@ -21,28 +22,28 @@ export async function getRepairOrders(req: Request, res: Response, next: NextFun
 
 export async function getRepairOrder(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
-    const data = await roService.getRepairOrder(req.params.id);
+    const data = await roService.getRepairOrder(req.params.id, req.user!.shopId);
     res.json({ success: true, data });
   } catch (err) { next(err); }
 }
 
 export async function createRepairOrder(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
-    const data = await roService.createRepairOrder(req.body, req.user!.userId);
+    const data = await roService.createRepairOrder(req.body, req.user!.userId, req.user!.shopId);
     res.status(201).json({ success: true, data });
   } catch (err) { next(err); }
 }
 
 export async function updateRepairOrder(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
-    const data = await roService.updateRepairOrder(req.params.id, req.body);
+    const data = await roService.updateRepairOrder(req.params.id, req.body, req.user!.shopId);
     res.json({ success: true, data });
   } catch (err) { next(err); }
 }
 
 export async function deleteRepairOrder(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
-    await roService.deleteRepairOrder(req.params.id);
+    await roService.deleteRepairOrder(req.params.id, req.user!.shopId);
     res.json({ success: true, message: 'Repair order deleted' });
   } catch (err) { next(err); }
 }
@@ -50,7 +51,7 @@ export async function deleteRepairOrder(req: Request, res: Response, next: NextF
 export async function updateStatus(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
     const { status, note } = req.body;
-    const data = await roService.updateStatus(req.params.id, status, req.user!.userId, note);
+    const data = await roService.updateStatus(req.params.id, status, req.user!.userId, req.user!.shopId, note);
     res.json({ success: true, data });
   } catch (err) { next(err); }
 }
@@ -58,77 +59,77 @@ export async function updateStatus(req: Request, res: Response, next: NextFuncti
 export async function assignTechnician(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
     const { technicianId } = req.body;
-    const data = await roService.assignTechnician(req.params.id, technicianId);
+    const data = await roService.assignTechnician(req.params.id, technicianId, req.user!.shopId);
     res.json({ success: true, data });
   } catch (err) { next(err); }
 }
 
 export async function removeTechnician(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
-    await roService.removeTechnician(req.params.id, req.params.techId);
+    await roService.removeTechnician(req.params.id, req.params.techId, req.user!.shopId);
     res.json({ success: true, message: 'Technician removed' });
   } catch (err) { next(err); }
 }
 
 export async function addJobLine(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
-    const data = await roService.addJobLine(req.params.id, req.body);
+    const data = await roService.addJobLine(req.params.id, req.body, req.user!.shopId);
     res.status(201).json({ success: true, data });
   } catch (err) { next(err); }
 }
 
 export async function updateJobLine(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
-    const data = await roService.updateJobLine(req.params.jobId, req.body);
+    const data = await roService.updateJobLine(req.params.jobId, req.body, req.user!.shopId);
     res.json({ success: true, data });
   } catch (err) { next(err); }
 }
 
 export async function deleteJobLine(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
-    await roService.deleteJobLine(req.params.jobId);
+    await roService.deleteJobLine(req.params.jobId, req.user!.shopId);
     res.json({ success: true, message: 'Job deleted' });
   } catch (err) { next(err); }
 }
 
 export async function addLaborLine(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
-    const data = await roService.addLaborLine(req.params.id, req.body);
+    const data = await roService.addLaborLine(req.params.id, req.body, req.user!.shopId);
     res.status(201).json({ success: true, data });
   } catch (err) { next(err); }
 }
 
 export async function updateLaborLine(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
-    const data = await roService.updateLaborLine(req.params.lineId, req.body);
+    const data = await roService.updateLaborLine(req.params.lineId, req.body, req.user!.shopId);
     res.json({ success: true, data });
   } catch (err) { next(err); }
 }
 
 export async function deleteLaborLine(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
-    await roService.deleteLaborLine(req.params.lineId);
+    await roService.deleteLaborLine(req.params.lineId, req.user!.shopId);
     res.json({ success: true, message: 'Labor line deleted' });
   } catch (err) { next(err); }
 }
 
 export async function addPartsLine(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
-    const data = await roService.addPartsLine(req.params.id, req.body);
+    const data = await roService.addPartsLine(req.params.id, req.body, req.user!.shopId);
     res.status(201).json({ success: true, data });
   } catch (err) { next(err); }
 }
 
 export async function updatePartsLine(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
-    const data = await roService.updatePartsLine(req.params.lineId, req.body);
+    const data = await roService.updatePartsLine(req.params.lineId, req.body, req.user!.shopId);
     res.json({ success: true, data });
   } catch (err) { next(err); }
 }
 
 export async function deletePartsLine(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
-    await roService.deletePartsLine(req.params.lineId);
+    await roService.deletePartsLine(req.params.lineId, req.user!.shopId);
     res.json({ success: true, message: 'Parts line deleted' });
   } catch (err) { next(err); }
 }

@@ -1,8 +1,9 @@
 import { prisma } from '../utils/prisma';
 import { AppError } from '../middleware/errorHandler';
-import { paginate, buildPaginationMeta } from '../utils/helpers';
+import { paginate, buildPaginationMeta, shopScope } from '../utils/helpers';
 
 interface GetCustomersParams {
+  shopId: string | null;
   search?: string;
   page: number;
   limit: number;
@@ -12,11 +13,12 @@ interface GetCustomersParams {
 
 const allowedSortFields = ['firstName', 'lastName', 'email', 'phone', 'createdAt'];
 
-export async function getCustomers({ search, page, limit, sortBy, sortOrder }: GetCustomersParams) {
+export async function getCustomers({ shopId, search, page, limit, sortBy, sortOrder }: GetCustomersParams) {
   const { take, skip } = paginate(page, limit);
   const orderField = allowedSortFields.includes(sortBy) ? sortBy : 'createdAt';
 
   const where = {
+    ...shopScope(shopId),
     deletedAt: null,
     ...(search && {
       OR: [
@@ -44,9 +46,9 @@ export async function getCustomers({ search, page, limit, sortBy, sortOrder }: G
   return { data, pagination: buildPaginationMeta(total, page, take) };
 }
 
-export async function getCustomer(id: string) {
+export async function getCustomer(id: string, shopId: string | null) {
   const customer = await prisma.customer.findFirst({
-    where: { id, deletedAt: null },
+    where: { id, ...shopScope(shopId), deletedAt: null },
     include: {
       vehicles: { where: { deletedAt: null } },
       _count: { select: { repairOrders: true } },
@@ -66,11 +68,12 @@ export async function createCustomer(data: {
   state?: string;
   zip?: string;
   notes?: string;
-}) {
+}, shopId: string | null) {
   if (!data.firstName || !data.lastName || !data.phone) {
     throw new AppError('First name, last name, and phone are required', 400);
   }
-  return prisma.customer.create({ data });
+  if (!shopId) throw new AppError('A shop context is required to create a customer', 400);
+  return prisma.customer.create({ data: { ...data, shopId } });
 }
 
 export async function updateCustomer(id: string, data: Partial<{
@@ -83,28 +86,28 @@ export async function updateCustomer(id: string, data: Partial<{
   state: string;
   zip: string;
   notes: string;
-}>) {
-  const existing = await prisma.customer.findFirst({ where: { id, deletedAt: null } });
+}>, shopId: string | null) {
+  const existing = await prisma.customer.findFirst({ where: { id, ...shopScope(shopId), deletedAt: null } });
   if (!existing) throw new AppError('Customer not found', 404);
   return prisma.customer.update({ where: { id }, data });
 }
 
-export async function deleteCustomer(id: string) {
-  const existing = await prisma.customer.findFirst({ where: { id, deletedAt: null } });
+export async function deleteCustomer(id: string, shopId: string | null) {
+  const existing = await prisma.customer.findFirst({ where: { id, ...shopScope(shopId), deletedAt: null } });
   if (!existing) throw new AppError('Customer not found', 404);
   return prisma.customer.update({ where: { id }, data: { deletedAt: new Date() } });
 }
 
-export async function getCustomerVehicles(customerId: string) {
+export async function getCustomerVehicles(customerId: string, shopId: string | null) {
   return prisma.vehicle.findMany({
-    where: { customerId, deletedAt: null },
+    where: { customerId, ...shopScope(shopId), deletedAt: null },
     orderBy: { createdAt: 'desc' },
   });
 }
 
-export async function getCustomerRepairOrders(customerId: string) {
+export async function getCustomerRepairOrders(customerId: string, shopId: string | null) {
   return prisma.repairOrder.findMany({
-    where: { customerId, deletedAt: null },
+    where: { customerId, ...shopScope(shopId), deletedAt: null },
     orderBy: { createdAt: 'desc' },
     include: {
       vehicle: { select: { make: true, model: true, year: true } },

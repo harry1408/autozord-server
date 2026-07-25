@@ -3,7 +3,7 @@ import { getUsers, createUser, updateUser, deleteUser } from '../controllers/use
 import { authenticate, authorize } from '../middleware/auth';
 
 const router = Router();
-router.use(authenticate, authorize('ADMIN'));
+router.use(authenticate, authorize('SHOP_ADMIN'));
 
 router.get('/', getUsers);
 router.post('/', createUser);

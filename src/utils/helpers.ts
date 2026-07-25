@@ -36,3 +36,9 @@ export function buildPaginationMeta(total: number, page: number, limit: number) 
     hasPrev: page > 1,
   };
 }
+
+// A null shopId means the caller is GLOBAL_ADMIN — no shop filter is applied,
+// so they see data across every shop. Every other role always has a shopId.
+export function shopScope(shopId: string | null): { shopId?: string } {
+  return shopId ? { shopId } : {};
+}

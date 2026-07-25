@@ -1,6 +1,6 @@
 import { prisma } from '../utils/prisma';
 import { AppError } from '../middleware/errorHandler';
-import { paginate, buildPaginationMeta, generateInvoiceNumber } from '../utils/helpers';
+import { paginate, buildPaginationMeta, generateInvoiceNumber, shopScope } from '../utils/helpers';
 
 const INVOICE_INCLUDE = {
   repairOrder: {
@@ -26,12 +26,13 @@ const INVOICE_INCLUDE = {
 };
 
 export async function getInvoices(params: {
+  shopId: string | null;
   status?: string; customerId?: string;
   page: number; limit: number; sortBy: string; sortOrder: 'asc' | 'desc';
 }) {
-  const { status, customerId, page, limit, sortBy, sortOrder } = params;
+  const { shopId, status, customerId, page, limit, sortBy, sortOrder } = params;
   const { take, skip } = paginate(page, limit);
-  const where: Record<string, unknown> = { deletedAt: null };
+  const where: Record<string, unknown> = { ...shopScope(shopId), deletedAt: null };
   if (status) where.status = status;
   if (customerId) where.customerId = customerId;
 
@@ -45,17 +46,17 @@ export async function getInvoices(params: {
   return { data, pagination: buildPaginationMeta(total, page, take) };
 }
 
-export async function getInvoice(id: string) {
-  const inv = await prisma.invoice.findFirst({ where: { id, deletedAt: null }, include: INVOICE_INCLUDE });
+export async function getInvoice(id: string, shopId: string | null) {
+  const inv = await prisma.invoice.findFirst({ where: { id, ...shopScope(shopId), deletedAt: null }, include: INVOICE_INCLUDE });
   if (!inv) throw new AppError('Invoice not found', 404);
   return inv;
 }
 
 export async function createInvoice(data: {
   repairOrderId: string; taxRate?: number; discount?: number; notes?: string; dueDate?: string;
-}) {
+}, shopId: string | null) {
   const ro = await prisma.repairOrder.findFirst({
-    where: { id: data.repairOrderId, deletedAt: null },
+    where: { id: data.repairOrderId, ...shopScope(shopId), deletedAt: null },
     include: { laborLines: true, partsLines: true },
   });
   if (!ro) throw new AppError('Repair order not found', 404);
@@ -73,6 +74,7 @@ export async function createInvoice(data: {
 
   const inv = await prisma.invoice.create({
     data: {
+      shopId: ro.shopId,
       invoiceNumber: generateInvoiceNumber(),
       repairOrderId: data.repairOrderId,
       customerId: ro.customerId,
@@ -94,8 +96,8 @@ export async function createInvoice(data: {
 
 export async function updateInvoice(id: string, data: Partial<{
   taxRate: number; discount: number; notes: string; dueDate: string;
-}>) {
-  const existing = await prisma.invoice.findFirst({ where: { id, deletedAt: null } });
+}>, shopId: string | null) {
+  const existing = await prisma.invoice.findFirst({ where: { id, ...shopScope(shopId), deletedAt: null } });
   if (!existing) throw new AppError('Invoice not found', 404);
 
   const taxRate = data.taxRate ?? existing.taxRate;
@@ -111,10 +113,10 @@ export async function updateInvoice(id: string, data: Partial<{
   });
 }
 
-export async function updateStatus(id: string, status: string) {
+export async function updateStatus(id: string, status: string, shopId: string | null) {
   const valid = ['DRAFT', 'SENT', 'PARTIALLY_PAID', 'PAID', 'VOID'];
   if (!valid.includes(status)) throw new AppError('Invalid status', 400);
-  const existing = await prisma.invoice.findFirst({ where: { id, deletedAt: null } });
+  const existing = await prisma.invoice.findFirst({ where: { id, ...shopScope(shopId), deletedAt: null } });
   if (!existing) throw new AppError('Invoice not found', 404);
   return prisma.invoice.update({ where: { id }, data: { status }, include: INVOICE_INCLUDE });
 }

@@ -1,6 +1,17 @@
 // To migrate from SQLite to PostgreSQL, change only:
 //   provider = "postgresql"
 //   url = env("DATABASE_URL")
+//
+// MULTI-TENANCY ROLLOUT — STAGE A (this file):
+//   shopId columns below are added as NULLABLE on every pre-existing model,
+//   and existing single-column unique constraints (roNumber, estimateNumber,
+//   invoiceNumber, vin, partNumber) are left untouched. This is safe to apply
+//   directly to production via `prisma db push` — it's purely additive.
+//   AFTER `scripts/backfill-shop.ts` has been run against that same database
+//   (creating a Default Shop and populating shopId on every row), apply
+//   STAGE B: flip each shopId to required (String) and swap the listed unique
+//   constraints to shop-scoped compound uniques (see bottom of this file for
+//   the exact Stage B diff), then `prisma db push` again.
 generator client {
   provider = "prisma-client-js"
 }
@@ -10,6 +21,42 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+model Shop {
+  id        String    @id @default(uuid())
+  name      String
+  slug      String    @unique
+  address   String?
+  city      String?
+  state     String?
+  zip       String?
+  phone     String?
+  email     String?
+  isActive  Boolean   @default(true)
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  users             User[]
+  customers         Customer[]
+  vehicles          Vehicle[]
+  technicians       Technician[]
+  repairOrders      RepairOrder[]
+  jobLines          JobLine[]
+  laborLines        LaborLine[]
+  partsLines        PartsLine[]
+  roTechnicians     RepairOrderTechnician[]
+  roStatusHistories ROStatusHistory[]
+  estimates         Estimate[]
+  invoices          Invoice[]
+  payments          Payment[]
+  inspections       Inspection[]
+  inspectionItems   InspectionItem[]
+  parts             Part[]
+  suppliers         Supplier[]
+  settings          ShopSettings?
+  inquiryTargets    InquiryShop[]
+}
+
 model User {
   id           String    @id @default(uuid())
   email        String    @unique
@@ -17,18 +64,24 @@ model User {
   firstName    String
   lastName     String
   role         String    @default("RECEPTIONIST")
+  shopId       String?
   isActive     Boolean   @default(true)
   refreshToken String?
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
   deletedAt    DateTime?
 
-  technician        Technician?
-  roStatusHistories ROStatusHistory[]
+  shop               Shop?             @relation(fields: [shopId], references: [id])
+  technician         Technician?
+  roStatusHistories  ROStatusHistory[]
+  respondedInquiries InquiryShop[]
+
+  @@index([shopId])
 }
 
 model Customer {
   id        String    @id @default(uuid())
+  shopId    String?
   firstName String
   lastName  String
   email     String?
@@ -42,14 +95,18 @@ model Customer {
   updatedAt DateTime  @updatedAt
   deletedAt DateTime?
 
+  shop         Shop?         @relation(fields: [shopId], references: [id])
   vehicles     Vehicle[]
   repairOrders RepairOrder[]
   estimates    Estimate[]
   invoices     Invoice[]
+
+  @@index([shopId])
 }
 
 model Vehicle {
   id           String    @id @default(uuid())
+  shopId       String?
   customerId   String
   make         String
   model        String
@@ -62,13 +119,17 @@ model Vehicle {
   updatedAt    DateTime  @updatedAt
   deletedAt    DateTime?
 
-  customer     Customer    @relation(fields: [customerId], references: [id])
+  shop         Shop?         @relation(fields: [shopId], references: [id])
+  customer     Customer      @relation(fields: [customerId], references: [id])
   repairOrders RepairOrder[]
   inspections  Inspection[]
+
+  @@index([shopId])
 }
 
 model Technician {
   id              String   @id @default(uuid())
+  shopId          String?
   userId          String   @unique
   specializations String?
   hourlyRate      Float    @default(0)
@@ -76,13 +137,17 @@ model Technician {
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 
+  shop        Shop?                   @relation(fields: [shopId], references: [id])
   user        User                    @relation(fields: [userId], references: [id])
   assignments RepairOrderTechnician[]
   inspections Inspection[]
+
+  @@index([shopId])
 }
 
 model RepairOrder {
   id            String    @id @default(uuid())
+  shopId        String?
   roNumber      String    @unique
   customerId    String
   vehicleId     String
@@ -96,6 +161,7 @@ model RepairOrder {
   updatedAt     DateTime  @updatedAt
   deletedAt     DateTime?
 
+  shop          Shop?                   @relation(fields: [shopId], references: [id])
   customer      Customer                @relation(fields: [customerId], references: [id])
   vehicle       Vehicle                 @relation(fields: [vehicleId], references: [id])
   jobLines      JobLine[]
@@ -105,25 +171,32 @@ model RepairOrder {
   statusHistory ROStatusHistory[]
   invoice       Invoice?
   inspection    Inspection?
+
+  @@index([shopId])
 }
 
 model JobLine {
-  id            String      @id @default(uuid())
+  id            String   @id @default(uuid())
+  shopId        String?
   repairOrderId String
   description   String
-  sortOrder     Int         @default(0)
-  discount      Float       @default(0)
-  partsDiscount Float       @default(0)
-  createdAt     DateTime    @default(now())
-  updatedAt     DateTime    @updatedAt
+  sortOrder     Int      @default(0)
+  discount      Float    @default(0)
+  partsDiscount Float    @default(0)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
 
-  repairOrder   RepairOrder @relation(fields: [repairOrderId], references: [id], onDelete: Cascade)
-  laborLines    LaborLine[]
-  partsLines    PartsLine[]
+  shop        Shop?       @relation(fields: [shopId], references: [id])
+  repairOrder RepairOrder @relation(fields: [repairOrderId], references: [id], onDelete: Cascade)
+  laborLines  LaborLine[]
+  partsLines  PartsLine[]
+
+  @@index([shopId])
 }
 
 model LaborLine {
   id            String   @id @default(uuid())
+  shopId        String?
   repairOrderId String?
   estimateId    String?
   jobLineId     String?
@@ -134,13 +207,17 @@ model LaborLine {
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
+  shop        Shop?        @relation(fields: [shopId], references: [id])
   repairOrder RepairOrder? @relation(fields: [repairOrderId], references: [id])
   estimate    Estimate?    @relation(fields: [estimateId], references: [id])
   jobLine     JobLine?     @relation(fields: [jobLineId], references: [id], onDelete: Cascade)
+
+  @@index([shopId])
 }
 
 model PartsLine {
   id            String   @id @default(uuid())
+  shopId        String?
   repairOrderId String?
   estimateId    String?
   partId        String?
@@ -154,26 +231,33 @@ model PartsLine {
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
+  shop        Shop?        @relation(fields: [shopId], references: [id])
   repairOrder RepairOrder? @relation(fields: [repairOrderId], references: [id])
   estimate    Estimate?    @relation(fields: [estimateId], references: [id])
   part        Part?        @relation(fields: [partId], references: [id])
   jobLine     JobLine?     @relation(fields: [jobLineId], references: [id], onDelete: Cascade)
+
+  @@index([shopId])
 }
 
 model RepairOrderTechnician {
   id            String   @id @default(uuid())
+  shopId        String?
   repairOrderId String
   technicianId  String
   assignedAt    DateTime @default(now())
 
+  shop        Shop?       @relation(fields: [shopId], references: [id])
   repairOrder RepairOrder @relation(fields: [repairOrderId], references: [id])
   technician  Technician  @relation(fields: [technicianId], references: [id])
 
   @@unique([repairOrderId, technicianId])
+  @@index([shopId])
 }
 
 model ROStatusHistory {
   id            String   @id @default(uuid())
+  shopId        String?
   repairOrderId String
   fromStatus    String?
   toStatus      String
@@ -181,12 +265,16 @@ model ROStatusHistory {
   changedById   String
   changedAt     DateTime @default(now())
 
+  shop        Shop?       @relation(fields: [shopId], references: [id])
   repairOrder RepairOrder @relation(fields: [repairOrderId], references: [id])
   changedBy   User        @relation(fields: [changedById], references: [id])
+
+  @@index([shopId])
 }
 
 model Estimate {
   id             String    @id @default(uuid())
+  shopId         String?
   estimateNumber String    @unique
   customerId     String
   vehicleId      String?
@@ -197,13 +285,17 @@ model Estimate {
   updatedAt      DateTime  @updatedAt
   deletedAt      DateTime?
 
+  shop       Shop?       @relation(fields: [shopId], references: [id])
   customer   Customer    @relation(fields: [customerId], references: [id])
   laborLines LaborLine[]
   partsLines PartsLine[]
+
+  @@index([shopId])
 }
 
 model Invoice {
   id            String    @id @default(uuid())
+  shopId        String?
   invoiceNumber String    @unique
   repairOrderId String    @unique
   customerId    String
@@ -221,13 +313,17 @@ model Invoice {
   updatedAt     DateTime  @updatedAt
   deletedAt     DateTime?
 
+  shop        Shop?       @relation(fields: [shopId], references: [id])
   repairOrder RepairOrder @relation(fields: [repairOrderId], references: [id])
   customer    Customer    @relation(fields: [customerId], references: [id])
   payments    Payment[]
+
+  @@index([shopId])
 }
 
 model Payment {
   id              String   @id @default(uuid())
+  shopId          String?
   invoiceId       String
   amount          Float
   method          String   @default("CASH")
@@ -237,11 +333,15 @@ model Payment {
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 
+  shop    Shop?   @relation(fields: [shopId], references: [id])
   invoice Invoice @relation(fields: [invoiceId], references: [id])
+
+  @@index([shopId])
 }
 
 model Inspection {
   id            String   @id @default(uuid())
+  shopId        String?
   repairOrderId String?  @unique
   vehicleId     String
   technicianId  String?
@@ -249,14 +349,18 @@ model Inspection {
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
-  vehicle     Vehicle         @relation(fields: [vehicleId], references: [id])
-  repairOrder RepairOrder?    @relation(fields: [repairOrderId], references: [id])
-  technician  Technician?     @relation(fields: [technicianId], references: [id])
+  shop        Shop?            @relation(fields: [shopId], references: [id])
+  vehicle     Vehicle          @relation(fields: [vehicleId], references: [id])
+  repairOrder RepairOrder?     @relation(fields: [repairOrderId], references: [id])
+  technician  Technician?      @relation(fields: [technicianId], references: [id])
   items       InspectionItem[]
+
+  @@index([shopId])
 }
 
 model InspectionItem {
   id           String   @id @default(uuid())
+  shopId       String?
   inspectionId String
   category     String
   name         String
@@ -266,11 +370,15 @@ model InspectionItem {
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
+  shop       Shop?      @relation(fields: [shopId], references: [id])
   inspection Inspection @relation(fields: [inspectionId], references: [id])
+
+  @@index([shopId])
 }
 
 model Part {
   id             String    @id @default(uuid())
+  shopId         String?
   partNumber     String?   @unique
   name           String
   description    String?
@@ -284,12 +392,16 @@ model Part {
   updatedAt      DateTime  @updatedAt
   deletedAt      DateTime?
 
+  shop       Shop?       @relation(fields: [shopId], references: [id])
   supplier   Supplier?   @relation(fields: [supplierId], references: [id])
   partsLines PartsLine[]
+
+  @@index([shopId])
 }
 
 model Supplier {
   id        String   @id @default(uuid())
+  shopId    String?
   name      String
   contact   String?
   phone     String?
@@ -298,21 +410,76 @@ model Supplier {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  shop  Shop?  @relation(fields: [shopId], references: [id])
   parts Part[]
+
+  @@index([shopId])
 }
 
 model ShopSettings {
-  id         String   @id @default(uuid())
-  shopName   String   @default("My Auto Shop")
-  address    String?
-  phone      String?
-  email      String?
-  taxRate    Float    @default(0)
-  laborRate  Float    @default(85)
-  logoUrl    String?
-  gstNumber  String?
-  pstNumber  String?
-  gstRate    Float    @default(5)
-  pstRate    Float    @default(7)
-  updatedAt  DateTime @updatedAt
+  id        String   @id @default(uuid())
+  shopId    String?  @unique
+  shopName  String   @default("My Auto Shop")
+  address   String?
+  phone     String?
+  email     String?
+  taxRate   Float    @default(0)
+  laborRate Float    @default(85)
+  logoUrl   String?
+  gstNumber String?
+  pstNumber String?
+  gstRate   Float    @default(5)
+  pstRate   Float    @default(7)
+  updatedAt DateTime @updatedAt
+
+  shop Shop? @relation(fields: [shopId], references: [id])
 }
+
+model Inquiry {
+  id          String   @id @default(uuid())
+  name        String
+  email       String
+  phone       String?
+  vehicleInfo String?
+  message     String
+  createdAt   DateTime @default(now())
+
+  targets InquiryShop[]
+}
+
+model InquiryShop {
+  id            String    @id @default(uuid())
+  inquiryId     String
+  shopId        String
+  status        String    @default("NEW")
+  response      String?
+  respondedAt   DateTime?
+  respondedById String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  inquiry     Inquiry @relation(fields: [inquiryId], references: [id], onDelete: Cascade)
+  shop        Shop    @relation(fields: [shopId], references: [id])
+  respondedBy User?   @relation(fields: [respondedById], references: [id])
+
+  @@unique([inquiryId, shopId])
+  @@index([shopId])
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// STAGE B (apply AFTER backfill-shop.ts has run successfully) — change:
+//   User.shopId, Customer.shopId, Vehicle.shopId, Technician.shopId,
+//   RepairOrder.shopId, JobLine.shopId, LaborLine.shopId, PartsLine.shopId,
+//   RepairOrderTechnician.shopId, ROStatusHistory.shopId, Estimate.shopId,
+//   Invoice.shopId, Payment.shopId, Inspection.shopId, InspectionItem.shopId,
+//   Part.shopId, Supplier.shopId, ShopSettings.shopId
+//     `String?` -> `String`   (and the paired relation field `Shop?` -> `Shop`)
+//   (User.shopId stays nullable — null means GLOBAL_ADMIN)
+// Also swap these single-column uniques for shop-scoped compound ones:
+//   RepairOrder:  roNumber String @unique         -> drop @unique, add `@@unique([shopId, roNumber])`
+//   Estimate:     estimateNumber String @unique    -> drop @unique, add `@@unique([shopId, estimateNumber])`
+//   Invoice:      invoiceNumber String @unique      -> drop @unique, add `@@unique([shopId, invoiceNumber])`
+//   Vehicle:      vin String? @unique               -> drop @unique, add `@@unique([shopId, vin])`
+//   Part:         partNumber String? @unique         -> drop @unique, add `@@unique([shopId, partNumber])`
+// Then run `npx prisma db push` a second time.
+// ─────────────────────────────────────────────────────────────────────────

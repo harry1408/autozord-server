@@ -1,4 +1,5 @@
 import { prisma } from '../utils/prisma';
+import { shopScope } from '../utils/helpers';
 
 function dateRange(startDate?: string, endDate?: string) {
   const now = new Date();
@@ -7,10 +8,10 @@ function dateRange(startDate?: string, endDate?: string) {
   return { gte: start, lte: end };
 }
 
-export async function getRevenueReport(startDate?: string, endDate?: string) {
+export async function getRevenueReport(startDate: string | undefined, endDate: string | undefined, shopId: string | null) {
   const range = dateRange(startDate, endDate);
   const payments = await prisma.payment.findMany({
-    where: { paidAt: range },
+    where: { ...shopScope(shopId), paidAt: range },
     include: {
       invoice: {
         select: {
@@ -50,10 +51,10 @@ export async function getRevenueReport(startDate?: string, endDate?: string) {
   return { total, byMethod, payments: flatPayments };
 }
 
-export async function getRepairOrdersReport(startDate?: string, endDate?: string) {
+export async function getRepairOrdersReport(startDate: string | undefined, endDate: string | undefined, shopId: string | null) {
   const range = dateRange(startDate, endDate);
   const ros = await prisma.repairOrder.findMany({
-    where: { deletedAt: null, createdAt: range },
+    where: { ...shopScope(shopId), deletedAt: null, createdAt: range },
     include: {
       customer: { select: { firstName: true, lastName: true } },
       vehicle: { select: { make: true, model: true, year: true } },
@@ -82,9 +83,10 @@ export async function getRepairOrdersReport(startDate?: string, endDate?: string
   return { total: ros.length, byStatus, orders };
 }
 
-export async function getTechnicianReport(startDate?: string, endDate?: string) {
+export async function getTechnicianReport(startDate: string | undefined, endDate: string | undefined, shopId: string | null) {
   const range = dateRange(startDate, endDate);
   const technicians = await prisma.technician.findMany({
+    where: shopScope(shopId),
     include: {
       user: { select: { firstName: true, lastName: true } },
       assignments: {
@@ -122,9 +124,9 @@ export async function getTechnicianReport(startDate?: string, endDate?: string) 
   });
 }
 
-export async function getInventoryReport() {
+export async function getInventoryReport(shopId: string | null) {
   const parts = await prisma.part.findMany({
-    where: { deletedAt: null },
+    where: { ...shopScope(shopId), deletedAt: null },
     orderBy: { quantityOnHand: 'asc' },
   });
 
@@ -142,9 +144,9 @@ export async function getInventoryReport() {
   };
 }
 
-export async function getAgingReport() {
+export async function getAgingReport(shopId: string | null) {
   const invoices = await prisma.invoice.findMany({
-    where: { deletedAt: null, status: { in: ['SENT', 'PARTIALLY_PAID'] } },
+    where: { ...shopScope(shopId), deletedAt: null, status: { in: ['SENT', 'PARTIALLY_PAID'] } },
     include: { customer: { select: { firstName: true, lastName: true, phone: true } } },
     orderBy: { createdAt: 'asc' },
   });

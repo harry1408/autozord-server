@@ -1,8 +1,9 @@
 import { prisma } from '../utils/prisma';
 import { AppError } from '../middleware/errorHandler';
-import { paginate, buildPaginationMeta } from '../utils/helpers';
+import { paginate, buildPaginationMeta, shopScope } from '../utils/helpers';
 
 interface GetVehiclesParams {
+  shopId: string | null;
   search?: string;
   customerId?: string;
   page: number;
@@ -11,10 +12,10 @@ interface GetVehiclesParams {
   sortOrder: 'asc' | 'desc';
 }
 
-export async function getVehicles({ search, customerId, page, limit, sortBy, sortOrder }: GetVehiclesParams) {
+export async function getVehicles({ shopId, search, customerId, page, limit, sortBy, sortOrder }: GetVehiclesParams) {
   const { take, skip } = paginate(page, limit);
 
-  const where: Record<string, unknown> = { deletedAt: null };
+  const where: Record<string, unknown> = { ...shopScope(shopId), deletedAt: null };
   if (customerId) where.customerId = customerId;
   if (search) {
     (where as { OR?: unknown[] }).OR = [
@@ -42,9 +43,9 @@ export async function getVehicles({ search, customerId, page, limit, sortBy, sor
   return { data, pagination: buildPaginationMeta(total, page, take) };
 }
 
-export async function getVehicle(id: string) {
+export async function getVehicle(id: string, shopId: string | null) {
   const vehicle = await prisma.vehicle.findFirst({
-    where: { id, deletedAt: null },
+    where: { id, ...shopScope(shopId), deletedAt: null },
     include: {
       customer: { select: { id: true, firstName: true, lastName: true, phone: true, email: true } },
       repairOrders: {
@@ -68,14 +69,15 @@ export async function createVehicle(data: {
   licensePlate?: string;
   color?: string;
   mileage?: number;
-}) {
+}, shopId: string | null) {
   if (!data.customerId || !data.make || !data.model || !data.year) {
     throw new AppError('Customer, make, model, and year are required', 400);
   }
-  const customer = await prisma.customer.findFirst({ where: { id: data.customerId, deletedAt: null } });
+  if (!shopId) throw new AppError('A shop context is required to create a vehicle', 400);
+  const customer = await prisma.customer.findFirst({ where: { id: data.customerId, shopId, deletedAt: null } });
   if (!customer) throw new AppError('Customer not found', 404);
 
-  return prisma.vehicle.create({ data });
+  return prisma.vehicle.create({ data: { ...data, shopId } });
 }
 
 export async function updateVehicle(id: string, data: Partial<{
@@ -86,14 +88,14 @@ export async function updateVehicle(id: string, data: Partial<{
   licensePlate: string;
   color: string;
   mileage: number;
-}>) {
-  const existing = await prisma.vehicle.findFirst({ where: { id, deletedAt: null } });
+}>, shopId: string | null) {
+  const existing = await prisma.vehicle.findFirst({ where: { id, ...shopScope(shopId), deletedAt: null } });
   if (!existing) throw new AppError('Vehicle not found', 404);
   return prisma.vehicle.update({ where: { id }, data });
 }
 
-export async function deleteVehicle(id: string) {
-  const existing = await prisma.vehicle.findFirst({ where: { id, deletedAt: null } });
+export async function deleteVehicle(id: string, shopId: string | null) {
+  const existing = await prisma.vehicle.findFirst({ where: { id, ...shopScope(shopId), deletedAt: null } });
   if (!existing) throw new AppError('Vehicle not found', 404);
   return prisma.vehicle.update({ where: { id }, data: { deletedAt: new Date() } });
 }

@@ -5,6 +5,7 @@ export async function getEstimates(req: Request, res: Response, next: NextFuncti
   try {
     const { search, status, customerId, page = '1', limit = '20', sortBy = 'createdAt', sortOrder = 'desc' } = req.query;
     const result = await estimateService.getEstimates({
+      shopId: req.user!.shopId,
       search: search as string, status: status as string, customerId: customerId as string,
       page: parseInt(page as string), limit: parseInt(limit as string),
       sortBy: sortBy as string, sortOrder: sortOrder as 'asc' | 'desc',
@@ -15,37 +16,37 @@ export async function getEstimates(req: Request, res: Response, next: NextFuncti
 
 export async function getEstimate(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
-    res.json({ success: true, data: await estimateService.getEstimate(req.params.id) });
+    res.json({ success: true, data: await estimateService.getEstimate(req.params.id, req.user!.shopId) });
   } catch (err) { next(err); }
 }
 
 export async function createEstimate(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
-    res.status(201).json({ success: true, data: await estimateService.createEstimate(req.body) });
+    res.status(201).json({ success: true, data: await estimateService.createEstimate(req.body, req.user!.shopId) });
   } catch (err) { next(err); }
 }
 
 export async function updateEstimate(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
-    res.json({ success: true, data: await estimateService.updateEstimate(req.params.id, req.body) });
+    res.json({ success: true, data: await estimateService.updateEstimate(req.params.id, req.body, req.user!.shopId) });
   } catch (err) { next(err); }
 }
 
 export async function deleteEstimate(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
-    await estimateService.deleteEstimate(req.params.id);
+    await estimateService.deleteEstimate(req.params.id, req.user!.shopId);
     res.json({ success: true, message: 'Estimate deleted' });
   } catch (err) { next(err); }
 }
 
 export async function updateStatus(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
-    res.json({ success: true, data: await estimateService.updateStatus(req.params.id, req.body.status) });
+    res.json({ success: true, data: await estimateService.updateStatus(req.params.id, req.body.status, req.user!.shopId) });
   } catch (err) { next(err); }
 }
 
 export async function convertToRO(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
-    res.status(201).json({ success: true, data: await estimateService.convertToRO(req.params.id, req.user!.userId) });
+    res.status(201).json({ success: true, data: await estimateService.convertToRO(req.params.id, req.user!.userId, req.user!.shopId) });
   } catch (err) { next(err); }
 }

@@ -1,9 +1,9 @@
 import { Router } from 'express';
 import { getTechnicians, getTechnician, createTechnician, updateTechnician, deleteTechnician } from '../controllers/technician.controller';
-import { authenticate, authorize } from '../middleware/auth';
+import { authenticate, authorize, SHOP_ROLES } from '../middleware/auth';
 
 const router = Router();
-router.use(authenticate);
+router.use(authenticate, authorize(...SHOP_ROLES));
 
 router.get('/', getTechnicians);
 router.post('/', authorize('SHOP_ADMIN', 'MANAGER'), createTechnician);

@@ -2,6 +2,12 @@ import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
 import { AppError } from './errorHandler';
 
+// Shop-staff roles — every route gated by these rejects GLOBAL_ADMIN's
+// counterpart (a shop-less, non-staff account such as CUSTOMER) at the
+// perimeter, before any service/shopScope logic runs. GLOBAL_ADMIN itself
+// always passes via the bypass in authorize() below.
+export const SHOP_ROLES = ['SHOP_ADMIN', 'MANAGER', 'TECHNICIAN', 'RECEPTIONIST'];
+
 export interface JwtPayload {
   userId: string;
   email: string;

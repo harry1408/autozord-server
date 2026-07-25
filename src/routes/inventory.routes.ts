@@ -1,9 +1,9 @@
 import { Router } from 'express';
 import { getParts, getPart, createPart, updatePart, deletePart, getSuppliers, createSupplier } from '../controllers/inventory.controller';
-import { authenticate } from '../middleware/auth';
+import { authenticate, authorize, SHOP_ROLES } from '../middleware/auth';
 
 const router = Router();
-router.use(authenticate);
+router.use(authenticate, authorize(...SHOP_ROLES));
 
 router.get('/parts', getParts);
 router.post('/parts', createPart);

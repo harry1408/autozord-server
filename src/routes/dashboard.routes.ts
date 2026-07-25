@@ -1,9 +1,9 @@
 import { Router } from 'express';
 import { getStats, getRevenueChart, getRecentOrders, getActivityFeed } from '../controllers/dashboard.controller';
-import { authenticate } from '../middleware/auth';
+import { authenticate, authorize, SHOP_ROLES } from '../middleware/auth';
 
 const router = Router();
-router.use(authenticate);
+router.use(authenticate, authorize(...SHOP_ROLES));
 
 router.get('/stats', getStats);
 router.get('/revenue-chart', getRevenueChart);

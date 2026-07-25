@@ -1,9 +1,9 @@
 import { Router } from 'express';
 import { getInvoices, getInvoice, createInvoice, updateInvoice, updateStatus } from '../controllers/invoice.controller';
-import { authenticate } from '../middleware/auth';
+import { authenticate, authorize, SHOP_ROLES } from '../middleware/auth';
 
 const router = Router();
-router.use(authenticate);
+router.use(authenticate, authorize(...SHOP_ROLES));
 
 router.get('/', getInvoices);
 router.post('/', createInvoice);

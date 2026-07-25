@@ -8,10 +8,10 @@ import {
   getCustomerVehicles,
   getCustomerRepairOrders,
 } from '../controllers/customer.controller';
-import { authenticate } from '../middleware/auth';
+import { authenticate, authorize, SHOP_ROLES } from '../middleware/auth';
 
 const router = Router();
-router.use(authenticate);
+router.use(authenticate, authorize(...SHOP_ROLES));
 
 router.get('/', getCustomers);
 router.post('/', createCustomer);

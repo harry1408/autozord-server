@@ -29,6 +29,14 @@ function sanitizeForLambda(text: string): string {
   return text.replace(/"/g, "'").replace(/\s*\n\s*/g, ' ');
 }
 
+// Strips accidental surrounding quotes from an env var - a common paste
+// mistake (e.g. entering "smtp.hostinger.com" instead of smtp.hostinger.com
+// into Render's dashboard), and one that would otherwise reproduce the same
+// Lambda request-mapping bug sanitizeForLambda works around above.
+function cleanEnvValue(value: string): string {
+  return value.trim().replace(/^"(.*)"$/, '$1');
+}
+
 // Render can't establish an outbound SMTP connection to Hostinger's mail
 // server from this Node process, or from a separate Python service also
 // hosted on Render (confirmed: connection timeout / network unreachable
@@ -50,10 +58,10 @@ export async function sendEmail(opts: { to: string; subject: string; html: strin
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        smtp_server: EMAIL_HOST,
+        smtp_server: cleanEnvValue(EMAIL_HOST),
         smtp_port: Number(EMAIL_PORT) || 465,
-        sender_email: EMAIL_USER,
-        sender_password: EMAIL_PASSWORD,
+        sender_email: cleanEnvValue(EMAIL_USER),
+        sender_password: cleanEnvValue(EMAIL_PASSWORD),
         recipient_email: opts.to,
         subject: sanitizeForLambda(opts.subject),
         body: sanitizeForLambda(opts.html),

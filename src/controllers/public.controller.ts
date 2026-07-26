@@ -1,10 +1,21 @@
 import { Request, Response, NextFunction } from 'express';
 import * as inquiryService from '../services/inquiry.service';
 import * as signupService from '../services/signup.service';
+import { detectRegion as detectRegionFromIp } from '../utils/geoRegion';
 
 export async function getPublicShops(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
     res.json({ success: true, data: await inquiryService.getPublicShops() });
+  } catch (err) { next(err); }
+}
+
+// Display-only lookup the signup page calls on load, to show the right
+// currency/price before the visitor submits anything. The actual signup
+// endpoint re-derives the region itself from the request IP rather than
+// trusting whatever this returned, so it can't be spoofed.
+export async function detectRegion(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    res.json({ success: true, data: { country: detectRegionFromIp(req.ip) } });
   } catch (err) { next(err); }
 }
 
@@ -30,8 +41,8 @@ export async function createInquiry(req: Request, res: Response, next: NextFunct
 
 export async function signup(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
-    const { shopName, firstName, lastName, email, password, planType, country, acceptedTerms } = req.body;
-    if (!shopName || !firstName || !lastName || !email || !password || !planType || !country) {
+    const { shopName, firstName, lastName, email, password, planType, acceptedTerms } = req.body;
+    if (!shopName || !firstName || !lastName || !email || !password || !planType) {
       res.status(400).json({ success: false, message: 'All fields are required' });
       return;
     }
@@ -43,6 +54,9 @@ export async function signup(req: Request, res: Response, next: NextFunction): P
       res.status(400).json({ success: false, message: 'You must accept the Terms & Conditions' });
       return;
     }
+    // Region is always re-derived from the request IP here, never trusted
+    // from the client, so it can't be spoofed by editing request state.
+    const country = detectRegionFromIp(req.ip);
     const data = await signupService.createSignup({ shopName, firstName, lastName, email, password, planType, country, acceptedTerms });
     res.status(201).json({
       success: true,

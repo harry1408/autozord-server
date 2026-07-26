@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import rateLimit from 'express-rate-limit';
-import { getPublicShops, createInquiry, signup, verifyOtp, resendOtp } from '../controllers/public.controller';
+import { getPublicShops, createInquiry, signup, verifyOtp, resendOtp, detectRegion } from '../controllers/public.controller';
 
 const router = Router();
 
@@ -31,6 +31,7 @@ const otpLimiter = rateLimit({
 });
 
 router.get('/shops', getPublicShops);
+router.get('/detect-region', detectRegion);
 router.post('/inquiries', inquiryLimiter, createInquiry);
 router.post('/signup', signupLimiter, signup);
 router.post('/verify-otp', otpLimiter, verifyOtp);

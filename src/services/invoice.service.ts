@@ -2,7 +2,6 @@ import { prisma } from '../utils/prisma';
 import { AppError } from '../middleware/errorHandler';
 import { paginate, buildPaginationMeta, generateInvoiceNumber, shopScope } from '../utils/helpers';
 import { sendEmail, wrapEmailHtml } from '../utils/email';
-import { generateInvoicePdf } from '../utils/invoicePdf';
 
 const INVOICE_INCLUDE = {
   repairOrder: {
@@ -123,7 +122,9 @@ export async function updateStatus(id: string, status: string, shopId: string | 
   return prisma.invoice.update({ where: { id }, data: { status }, include: INVOICE_INCLUDE });
 }
 
-export async function sendInvoiceEmail(id: string, shopId: string | null, emailOverride?: string) {
+export async function sendInvoiceEmail(id: string, shopId: string | null, emailOverride: string | undefined, pdfBase64: string) {
+  if (!pdfBase64) throw new AppError('Invoice PDF is required', 400);
+
   const inv = await prisma.invoice.findFirst({ where: { id, ...shopScope(shopId), deletedAt: null }, include: INVOICE_INCLUDE });
   if (!inv) throw new AppError('Invoice not found', 404);
 
@@ -138,8 +139,6 @@ export async function sendInvoiceEmail(id: string, shopId: string | null, emailO
   const settings = await prisma.shopSettings.findFirst({ where: { shopId: inv.shopId } });
   const shopName = settings?.shopName ?? 'Autozord';
 
-  const pdfBuffer = await generateInvoicePdf(inv, settings ?? {});
-
   await sendEmail({
     to: targetEmail,
     subject: `Invoice ${inv.invoiceNumber} from ${shopName}`,
@@ -147,7 +146,7 @@ export async function sendInvoiceEmail(id: string, shopId: string | null, emailO
     category: 'INVOICE',
     attachment: {
       filename: `invoice-${inv.invoiceNumber}.pdf`,
-      contentBase64: pdfBuffer.toString('base64'),
+      contentBase64: pdfBase64,
     },
   });
 

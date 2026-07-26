@@ -33,10 +33,14 @@ import inquiryRoutes from './routes/inquiry.routes';
 const app = express();
 const PORT = process.env.PORT || 4000;
 
-// Render sits in front of this app as a reverse proxy and sets
-// X-Forwarded-For; without this, express-rate-limit can't safely derive
-// the real client IP and throws on every request that hits a rate limiter.
-app.set('trust proxy', 1);
+// Two proxy hops sit in front of this app on Render: Cloudflare's edge,
+// then Render's own internal reverse proxy (confirmed via the actual
+// X-Forwarded-For chain in production: "<client>, <cloudflare>, <render
+// internal>"). trust proxy must match this exactly - too low and req.ip
+// resolves to Render's internal address instead of the real client (which
+// silently breaks anything keyed on visitor IP, like geo-detection),
+// too high and a spoofed X-Forwarded-For header could be trusted instead.
+app.set('trust proxy', 2);
 
 // Ensure uploads directory exists
 const uploadsDir = path.join(__dirname, '../../uploads');

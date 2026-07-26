@@ -15,12 +15,7 @@ export async function getPublicShops(req: Request, res: Response, next: NextFunc
 // trusting whatever this returned, so it can't be spoofed.
 export async function detectRegion(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
-    res.json({
-      success: true,
-      data: { country: detectRegionFromIp(req.ip) },
-      // TEMP DIAGNOSTIC - remove once region detection is confirmed working in prod.
-      _debug: { reqIp: req.ip, xForwardedFor: req.headers['x-forwarded-for'], ips: req.ips },
-    });
+    res.json({ success: true, data: { country: detectRegionFromIp(req.ip) } });
   } catch (err) { next(err); }
 }
 

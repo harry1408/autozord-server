@@ -28,6 +28,16 @@ async function sendOtpEmail(email: string, firstName: string, otp: string): Prom
   });
 }
 
+async function sendRegistrationReceivedEmail(email: string, firstName: string, planType: string | null): Promise<void> {
+  const planLabel = planType === 'YEARLY' ? 'Yearly' : 'Monthly';
+  await sendEmail({
+    to: email,
+    subject: 'Autozord registration received',
+    html: wrapEmailHtml(`<p style='margin:0 0 16px;'>Hi ${firstName},</p><p style='margin:0 0 16px;'>Thanks for verifying your email. We'll review your shop's details next, and send you a payment link for your ${planLabel} plan shortly.</p><p style='margin:0;color:${EMAIL_COLORS.TEXT_MUTED};font-size:13px;'>You'll get another email as soon as your account is verified and ready to use.</p>`),
+    category: 'REGISTRATION',
+  });
+}
+
 export async function createSignup(data: {
   shopName: string;
   firstName: string;
@@ -102,7 +112,7 @@ export async function createSignup(data: {
 }
 
 export async function verifyOtp(email: string, otp: string) {
-  const user = await prisma.user.findUnique({ where: { email } });
+  const user = await prisma.user.findUnique({ where: { email }, include: { shop: true } });
   if (!user || !user.emailOtp || !user.emailOtpExpiresAt) {
     throw new AppError('Invalid or expired code', 400);
   }
@@ -117,6 +127,8 @@ export async function verifyOtp(email: string, otp: string) {
     where: { id: user.id },
     data: { emailVerifiedAt: new Date(), emailOtp: null, emailOtpExpiresAt: null },
   });
+
+  await sendRegistrationReceivedEmail(user.email, user.firstName, user.shop?.planType ?? null);
 }
 
 export async function resendOtp(email: string) {

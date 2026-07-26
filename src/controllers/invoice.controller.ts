@@ -37,3 +37,10 @@ export async function updateStatus(req: Request, res: Response, next: NextFuncti
     res.json({ success: true, data: await invoiceService.updateStatus(req.params.id, req.body.status, req.user!.shopId) });
   } catch (err) { next(err); }
 }
+
+export async function sendInvoiceEmail(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const result = await invoiceService.sendInvoiceEmail(req.params.id, req.user!.shopId, req.body.email);
+    res.json({ success: true, data: result });
+  } catch (err) { next(err); }
+}

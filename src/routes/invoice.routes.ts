@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { getInvoices, getInvoice, createInvoice, updateInvoice, updateStatus } from '../controllers/invoice.controller';
+import { getInvoices, getInvoice, createInvoice, updateInvoice, updateStatus, sendInvoiceEmail } from '../controllers/invoice.controller';
 import { authenticate, authorize, SHOP_ROLES } from '../middleware/auth';
 import { requireActiveSubscription } from '../middleware/subscription';
 
@@ -11,5 +11,6 @@ router.post('/', createInvoice);
 router.get('/:id', getInvoice);
 router.put('/:id', updateInvoice);
 router.patch('/:id/status', updateStatus);
+router.post('/:id/send-email', sendInvoiceEmail);
 
 export default router;

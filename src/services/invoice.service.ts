@@ -1,6 +1,8 @@
 import { prisma } from '../utils/prisma';
 import { AppError } from '../middleware/errorHandler';
 import { paginate, buildPaginationMeta, generateInvoiceNumber, shopScope } from '../utils/helpers';
+import { sendEmail, wrapEmailHtml } from '../utils/email';
+import { generateInvoicePdf } from '../utils/invoicePdf';
 
 const INVOICE_INCLUDE = {
   repairOrder: {
@@ -119,4 +121,35 @@ export async function updateStatus(id: string, status: string, shopId: string | 
   const existing = await prisma.invoice.findFirst({ where: { id, ...shopScope(shopId), deletedAt: null } });
   if (!existing) throw new AppError('Invoice not found', 404);
   return prisma.invoice.update({ where: { id }, data: { status }, include: INVOICE_INCLUDE });
+}
+
+export async function sendInvoiceEmail(id: string, shopId: string | null, emailOverride?: string) {
+  const inv = await prisma.invoice.findFirst({ where: { id, ...shopScope(shopId), deletedAt: null }, include: INVOICE_INCLUDE });
+  if (!inv) throw new AppError('Invoice not found', 404);
+
+  const trimmedOverride = emailOverride?.trim();
+  const targetEmail = trimmedOverride || inv.customer.email;
+  if (!targetEmail) throw new AppError('Customer email is required', 400);
+
+  if (trimmedOverride && trimmedOverride !== inv.customer.email) {
+    await prisma.customer.update({ where: { id: inv.customer.id }, data: { email: trimmedOverride } });
+  }
+
+  const settings = await prisma.shopSettings.findFirst({ where: { shopId: inv.shopId } });
+  const shopName = settings?.shopName ?? 'Autozord';
+
+  const pdfBuffer = await generateInvoicePdf(inv, settings ?? {});
+
+  await sendEmail({
+    to: targetEmail,
+    subject: `Invoice ${inv.invoiceNumber} from ${shopName}`,
+    html: wrapEmailHtml(`<p>Hi ${inv.customer.firstName},</p><p>Please find attached your invoice #${inv.invoiceNumber} from ${shopName}.</p><p>Total: $${inv.total.toFixed(2)} | Balance Due: $${inv.balance.toFixed(2)}</p><p>Thank you for your business.</p>`),
+    category: 'INVOICE',
+    attachment: {
+      filename: `invoice-${inv.invoiceNumber}.pdf`,
+      contentBase64: pdfBuffer.toString('base64'),
+    },
+  });
+
+  return { email: targetEmail };
 }

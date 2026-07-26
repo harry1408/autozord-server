@@ -5,7 +5,7 @@ export const CLIENT_URL = process.env.CLIENT_URL || 'https://autozord.com';
 
 const LOGO_URL = `${CLIENT_URL}/logo.png`;
 
-export type EmailCategory = 'OTP' | 'PASSWORD_RESET' | 'GENERIC';
+export type EmailCategory = 'OTP' | 'PASSWORD_RESET' | 'INVOICE' | 'GENERIC';
 
 // Wraps transactional email bodies with the Autozord logo header. Kept to
 // single-quoted attributes and no line breaks, same as the rest of these
@@ -53,7 +53,12 @@ function cleanEnvValue(value: string): string {
 // on both port 465 and 587, over both IPv4 and IPv6). Delegating actual
 // delivery to an AWS Lambda (via API Gateway) that does the SMTP call
 // from AWS's network instead, reached here over plain HTTPS.
-export async function sendEmail(opts: { to: string; subject: string; html: string; category?: EmailCategory }): Promise<void> {
+export interface EmailAttachment {
+  filename: string; // must not contain `"` or a newline - see sanitizeForLambda note above
+  contentBase64: string;
+}
+
+export async function sendEmail(opts: { to: string; subject: string; html: string; category?: EmailCategory; attachment?: EmailAttachment }): Promise<void> {
   const category = opts.category ?? 'GENERIC';
   const { EMAIL_LAMBDA_URL, EMAIL_HOST, EMAIL_PORT, EMAIL_USER, EMAIL_PASSWORD } = process.env;
   if (!EMAIL_LAMBDA_URL || !EMAIL_HOST || !EMAIL_USER || !EMAIL_PASSWORD) {
@@ -75,6 +80,10 @@ export async function sendEmail(opts: { to: string; subject: string; html: strin
         recipient_email: opts.to,
         subject: sanitizeForLambda(opts.subject),
         body: sanitizeForLambda(opts.html),
+        ...(opts.attachment ? {
+          attachment_filename: sanitizeForLambda(opts.attachment.filename),
+          attachment_base64: opts.attachment.contentBase64,
+        } : {}),
       }),
     });
   } catch (err) {

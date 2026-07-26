@@ -30,8 +30,8 @@ export async function createInquiry(req: Request, res: Response, next: NextFunct
 
 export async function signup(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
-    const { shopName, firstName, lastName, email, password, planType, acceptedTerms } = req.body;
-    if (!shopName || !firstName || !lastName || !email || !password || !planType) {
+    const { shopName, firstName, lastName, email, password, planType, country, acceptedTerms } = req.body;
+    if (!shopName || !firstName || !lastName || !email || !password || !planType || !country) {
       res.status(400).json({ success: false, message: 'All fields are required' });
       return;
     }
@@ -43,7 +43,7 @@ export async function signup(req: Request, res: Response, next: NextFunction): P
       res.status(400).json({ success: false, message: 'You must accept the Terms & Conditions' });
       return;
     }
-    const data = await signupService.createSignup({ shopName, firstName, lastName, email, password, planType, acceptedTerms });
+    const data = await signupService.createSignup({ shopName, firstName, lastName, email, password, planType, country, acceptedTerms });
     res.status(201).json({
       success: true,
       data,

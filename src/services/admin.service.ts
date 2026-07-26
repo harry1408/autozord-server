@@ -134,6 +134,7 @@ export async function createShop(data: {
 export async function updateShop(id: string, data: Partial<{
   name: string; address: string; city: string; state: string; zip: string; phone: string; email: string; isActive: boolean;
   planType: string; isVerified: boolean; trialEndsAt: string; paidUntil: string;
+  country: string; currency: string; subscriptionPrice: number;
 }>) {
   const existing = await prisma.shop.findFirst({ where: { id, deletedAt: null } });
   if (!existing) throw new AppError('Shop not found', 404);

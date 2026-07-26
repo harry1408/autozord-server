@@ -36,6 +36,9 @@ export async function getSubscription(req: Request, res: Response, next: NextFun
         daysLeft,
         trialEndsAt: shop.trialEndsAt,
         paidUntil: shop.paidUntil,
+        country: shop.country,
+        currency: shop.currency,
+        subscriptionPrice: shop.subscriptionPrice,
       },
     });
   } catch (err) { next(err); }

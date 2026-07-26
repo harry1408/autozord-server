@@ -44,6 +44,17 @@ model Shop {
   trialEndsAt DateTime?
   paidUntil   DateTime?
 
+  // Region picked at self-signup (drives which currency/price the plan
+  // picker showed) - 'CA' | 'US' | 'IN'. currency/subscriptionPrice are
+  // snapshotted at signup time (from utils/pricing.ts) rather than derived
+  // on every read, so a later pricing change doesn't retroactively alter
+  // what an existing shop is shown as paying. All nullable since
+  // pre-existing shops predate this - treat missing country as Canada,
+  // the original market.
+  country           String?
+  currency          String?
+  subscriptionPrice Float?
+
   users             User[]
   customers         Customer[]
   vehicles          Vehicle[]

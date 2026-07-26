@@ -2,6 +2,7 @@ import { prisma } from '../utils/prisma';
 import { AppError } from '../middleware/errorHandler';
 import bcrypt from 'bcryptjs';
 import { sendEmail, wrapEmailHtml, EMAIL_COLORS } from '../utils/email';
+import { isValidRegion, getSubscriptionPrice } from '../utils/pricing';
 
 const SELF_SERVE_PLANS = ['MONTHLY', 'YEARLY'];
 const TRIAL_DAYS = 7;
@@ -34,10 +35,14 @@ export async function createSignup(data: {
   email: string;
   password: string;
   planType: string;
+  country: string;
   acceptedTerms: boolean;
 }) {
   if (!SELF_SERVE_PLANS.includes(data.planType)) {
     throw new AppError('Invalid plan selected', 400);
+  }
+  if (!isValidRegion(data.country)) {
+    throw new AppError('Invalid region selected', 400);
   }
   if (!data.acceptedTerms) {
     throw new AppError('You must accept the Terms & Conditions', 400);
@@ -57,6 +62,7 @@ export async function createSignup(data: {
   const passwordHash = await bcrypt.hash(data.password, 10);
   const otp = generateOtp();
   const otpExpiresAt = new Date(Date.now() + OTP_TTL_MINUTES * 60 * 1000);
+  const { currency, amount } = getSubscriptionPrice(data.country, data.planType as 'MONTHLY' | 'YEARLY');
 
   const { shop } = await prisma.$transaction(async (tx) => {
     const shop = await tx.shop.create({
@@ -66,6 +72,9 @@ export async function createSignup(data: {
         planType: data.planType,
         isVerified: false,
         trialEndsAt,
+        country: data.country,
+        currency,
+        subscriptionPrice: amount,
       },
     });
 

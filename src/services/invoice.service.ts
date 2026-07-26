@@ -1,7 +1,7 @@
 import { prisma } from '../utils/prisma';
 import { AppError } from '../middleware/errorHandler';
 import { paginate, buildPaginationMeta, generateInvoiceNumber, shopScope } from '../utils/helpers';
-import { sendEmail, wrapEmailHtml } from '../utils/email';
+import { sendEmail, wrapEmailHtml, EMAIL_COLORS } from '../utils/email';
 
 const INVOICE_INCLUDE = {
   repairOrder: {
@@ -142,7 +142,7 @@ export async function sendInvoiceEmail(id: string, shopId: string | null, emailO
   await sendEmail({
     to: targetEmail,
     subject: `Invoice ${inv.invoiceNumber} from ${shopName}`,
-    html: wrapEmailHtml(`<p>Hi ${inv.customer.firstName},</p><p>Please find attached your invoice #${inv.invoiceNumber} from ${shopName}.</p><p>Total: $${inv.total.toFixed(2)} | Balance Due: $${inv.balance.toFixed(2)}</p><p>Thank you for your business.</p>`),
+    html: wrapEmailHtml(`<p style='margin:0 0 16px;'>Hi ${inv.customer.firstName},</p><p style='margin:0 0 20px;'>Please find attached your invoice #${inv.invoiceNumber} from ${shopName}.</p><table role='presentation' width='100%' cellpadding='0' cellspacing='0' style='margin:0 0 20px;background-color:#fafafa;border-radius:8px;'><tr><td style='padding:16px 20px;'><table role='presentation' width='100%' cellpadding='0' cellspacing='0'><tr><td style='color:${EMAIL_COLORS.TEXT_MUTED};font-size:13px;padding:3px 0;'>Total</td><td align='right' style='color:${EMAIL_COLORS.TEXT_DARK};font-size:13px;font-weight:bold;padding:3px 0;'>$${inv.total.toFixed(2)}</td></tr><tr><td style='color:${EMAIL_COLORS.TEXT_MUTED};font-size:13px;padding:3px 0;'>Balance Due</td><td align='right' style='color:${EMAIL_COLORS.BRAND_RED};font-size:13px;font-weight:bold;padding:3px 0;'>$${inv.balance.toFixed(2)}</td></tr></table></td></tr></table><p style='margin:0;color:${EMAIL_COLORS.TEXT_MUTED};font-size:13px;'>Thank you for your business.</p>`),
     category: 'INVOICE',
     attachment: {
       filename: `invoice-${inv.invoiceNumber}.pdf`,

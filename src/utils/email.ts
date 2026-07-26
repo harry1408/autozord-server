@@ -11,13 +11,26 @@ const NOTIFICATION_CC = 'autozord.com@gmail.com';
 
 export type EmailCategory = 'OTP' | 'PASSWORD_RESET' | 'INVOICE' | 'GENERIC';
 
-// Wraps transactional email bodies with the Autozord logo header. Kept to
-// single-quoted attributes and no line breaks, same as the rest of these
-// templates, since the Lambda's API Gateway mapping template corrupts the
-// JSON payload on a literal `"` or embedded newline.
+// Brand palette (tailwind.config.js `brand` scale) - the logo itself is
+// dark red on a transparent/white background, so the card stays light
+// (for contrast) and brand red is used as an accent instead of a header fill.
+const BRAND_RED = '#e60000';
+const BRAND_RED_TINT = '#fff0f0';
+const BRAND_RED_BORDER = '#ffbbbb';
+const TEXT_DARK = '#27272a';
+const TEXT_MUTED = '#71717a';
+
+// Wraps transactional email bodies in a branded card (accent bar, logo
+// header, muted footer). Kept to single-quoted attributes and no line
+// breaks, same as the rest of these templates, since the Lambda's API
+// Gateway mapping template corrupts the JSON payload on a literal `"` or
+// embedded newline. Table-based layout since email clients (Outlook in
+// particular) don't reliably support flex/grid.
 export function wrapEmailHtml(innerHtml: string): string {
-  return `<div style='text-align:center;margin-bottom:24px;'><img src='${LOGO_URL}' alt='Autozord' style='height:48px;'/></div>${innerHtml}`;
+  return `<table role='presentation' width='100%' cellpadding='0' cellspacing='0' style='background-color:#f4f4f5;padding:32px 0;'><tr><td align='center'><table role='presentation' width='560' cellpadding='0' cellspacing='0' style='max-width:560px;width:100%;background-color:#ffffff;border-radius:12px;overflow:hidden;font-family:Arial,Helvetica,sans-serif;'><tr><td style='background-color:${BRAND_RED};height:6px;font-size:0;line-height:0;'>&nbsp;</td></tr><tr><td style='padding:28px 32px 16px;text-align:center;'><img src='${LOGO_URL}' alt='Autozord' style='height:44px;display:inline-block;'/></td></tr><tr><td style='padding:8px 32px 32px;color:${TEXT_DARK};font-size:14px;line-height:1.6;'>${innerHtml}</td></tr><tr><td style='background-color:#fafafa;padding:18px 32px;text-align:center;border-top:1px solid #e4e4e7;'><p style='margin:0;font-size:12px;color:${TEXT_MUTED};'>Autozord &middot; Auto Repair Shop Management</p></td></tr></table></td></tr></table>`;
 }
+
+export const EMAIL_COLORS = { BRAND_RED, BRAND_RED_TINT, BRAND_RED_BORDER, TEXT_DARK, TEXT_MUTED };
 
 async function logEmail(data: { to: string; subject: string; category: EmailCategory; status: 'SENT' | 'FAILED'; errorMessage?: string }): Promise<void> {
   try {

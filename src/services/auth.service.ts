@@ -9,7 +9,7 @@ import {
   JwtPayload,
 } from '../middleware/auth';
 import { getSubscriptionState, isAllowedToOperate } from '../utils/subscription';
-import { sendEmail, wrapEmailHtml, CLIENT_URL } from '../utils/email';
+import { sendEmail, wrapEmailHtml, CLIENT_URL, EMAIL_COLORS } from '../utils/email';
 
 const SUBSCRIPTION_LOGIN_MESSAGES: Record<string, string> = {
   PENDING_VERIFICATION: 'Your account is pending verification. We\'ll notify you once approved.',
@@ -136,7 +136,7 @@ export async function forgotPassword(email: string): Promise<void> {
   await sendEmail({
     to: user.email,
     subject: 'Reset your Autozord password',
-    html: wrapEmailHtml(`<p>Hi ${user.firstName},</p><p>Click the link below to set a new password. This link expires in 1 hour.</p><p><a href='${CLIENT_URL}/reset-password?token=${rawToken}'>Reset your password</a></p><p>If you didn't request this, you can safely ignore this email.</p>`),
+    html: wrapEmailHtml(`<p style='margin:0 0 16px;'>Hi ${user.firstName},</p><p style='margin:0 0 24px;'>Click the button below to set a new password. This link expires in 1 hour.</p><table role='presentation' cellpadding='0' cellspacing='0' style='margin:0 0 24px;'><tr><td style='border-radius:8px;background-color:${EMAIL_COLORS.BRAND_RED};'><a href='${CLIENT_URL}/reset-password?token=${rawToken}' style='display:inline-block;padding:14px 28px;color:#ffffff;font-weight:bold;text-decoration:none;font-size:14px;border-radius:8px;'>Reset your password</a></td></tr></table><p style='margin:0;color:${EMAIL_COLORS.TEXT_MUTED};font-size:13px;'>If you didn't request this, you can safely ignore this email.</p>`),
     category: 'PASSWORD_RESET',
   });
 }

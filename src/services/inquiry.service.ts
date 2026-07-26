@@ -19,7 +19,12 @@ export async function createInquiry(data: {
   vehicleInfo?: string;
   message: string;
   shopIds: string[];
+  acceptedTerms: boolean;
 }) {
+  if (!data.acceptedTerms) {
+    throw new AppError('You must accept the Terms & Conditions', 400);
+  }
+
   const shops = await prisma.shop.findMany({
     where: { id: { in: data.shopIds }, isActive: true, deletedAt: null },
   });
@@ -34,6 +39,7 @@ export async function createInquiry(data: {
       phone: data.phone,
       vehicleInfo: data.vehicleInfo,
       message: data.message,
+      termsAcceptedAt: new Date(),
       targets: {
         create: shops.map(shop => ({ shopId: shop.id })),
       },

@@ -34,9 +34,13 @@ export async function createSignup(data: {
   email: string;
   password: string;
   planType: string;
+  acceptedTerms: boolean;
 }) {
   if (!SELF_SERVE_PLANS.includes(data.planType)) {
     throw new AppError('Invalid plan selected', 400);
+  }
+  if (!data.acceptedTerms) {
+    throw new AppError('You must accept the Terms & Conditions', 400);
   }
 
   const existingUser = await prisma.user.findUnique({ where: { email: data.email } });
@@ -76,6 +80,7 @@ export async function createSignup(data: {
         emailVerifiedAt: null,
         emailOtp: otp,
         emailOtpExpiresAt: otpExpiresAt,
+        termsAcceptedAt: new Date(),
       },
     });
 

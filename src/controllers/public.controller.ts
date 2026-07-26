@@ -10,7 +10,7 @@ export async function getPublicShops(req: Request, res: Response, next: NextFunc
 
 export async function createInquiry(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
-    const { name, email, phone, vehicleInfo, message, shopIds } = req.body;
+    const { name, email, phone, vehicleInfo, message, shopIds, acceptedTerms } = req.body;
     if (!name || !email || !message) {
       res.status(400).json({ success: false, message: 'Name, email, and message are required' });
       return;
@@ -19,14 +19,18 @@ export async function createInquiry(req: Request, res: Response, next: NextFunct
       res.status(400).json({ success: false, message: 'Select at least one shop' });
       return;
     }
-    const data = await inquiryService.createInquiry({ name, email, phone, vehicleInfo, message, shopIds });
+    if (!acceptedTerms) {
+      res.status(400).json({ success: false, message: 'You must accept the Terms & Conditions' });
+      return;
+    }
+    const data = await inquiryService.createInquiry({ name, email, phone, vehicleInfo, message, shopIds, acceptedTerms });
     res.status(201).json({ success: true, data });
   } catch (err) { next(err); }
 }
 
 export async function signup(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
-    const { shopName, firstName, lastName, email, password, planType } = req.body;
+    const { shopName, firstName, lastName, email, password, planType, acceptedTerms } = req.body;
     if (!shopName || !firstName || !lastName || !email || !password || !planType) {
       res.status(400).json({ success: false, message: 'All fields are required' });
       return;
@@ -35,7 +39,11 @@ export async function signup(req: Request, res: Response, next: NextFunction): P
       res.status(400).json({ success: false, message: 'Password must be at least 6 characters' });
       return;
     }
-    const data = await signupService.createSignup({ shopName, firstName, lastName, email, password, planType });
+    if (!acceptedTerms) {
+      res.status(400).json({ success: false, message: 'You must accept the Terms & Conditions' });
+      return;
+    }
+    const data = await signupService.createSignup({ shopName, firstName, lastName, email, password, planType, acceptedTerms });
     res.status(201).json({
       success: true,
       data,

@@ -90,6 +90,12 @@ model User {
   passwordResetTokenHash String?
   passwordResetExpiresAt DateTime?
 
+  // Set at self-signup once the shop owner accepts the Terms & Conditions
+  // (shop is directly responsible for its own services, not Autozord).
+  // Nullable since pre-existing/admin-created users never went through
+  // that screen - not backfilled, this is a point-in-time consent record.
+  termsAcceptedAt DateTime?
+
   shop               Shop?             @relation(fields: [shopId], references: [id])
   technician         Technician?
   roStatusHistories  ROStatusHistory[]
@@ -455,13 +461,17 @@ model ShopSettings {
 }
 
 model Inquiry {
-  id          String   @id @default(uuid())
+  id          String    @id @default(uuid())
   name        String
   email       String
   phone       String?
   vehicleInfo String?
   message     String
-  createdAt   DateTime @default(now())
+  createdAt   DateTime  @default(now())
+
+  // Set when the submitter accepts the Terms & Conditions (the shop they
+  // contact, not Autozord, is directly responsible for its services).
+  termsAcceptedAt DateTime?
 
   targets InquiryShop[]
 }

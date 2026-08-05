@@ -2,7 +2,43 @@ import { prisma } from '../utils/prisma';
 import { AppError } from '../middleware/errorHandler';
 import bcrypt from 'bcryptjs';
 import crypto from 'crypto';
+import zlib from 'zlib';
+import os from 'os';
+import path from 'path';
+import fs from 'fs/promises';
 import { sendEmail, wrapEmailHtml, CLIENT_URL, EMAIL_COLORS } from '../utils/email';
+import { generateDatabaseDumpSql } from '../utils/dbDump';
+
+const DB_DUMP_RECIPIENT = 'autozord.com@gmail.com';
+
+// Writes the dump to a temp file only for the moment it takes to email it,
+// then removes it in a finally block - guaranteed cleanup even if the
+// email send fails, and nothing is left behind either way.
+export async function generateAndEmailDatabaseDump(): Promise<{ email: string; tableCount: number; rowCount: number; sizeBytes: number }> {
+  const { sql, tableCount, rowCount } = await generateDatabaseDumpSql();
+  const gzipped = zlib.gzipSync(sql);
+  const filename = `autozord-db-dump-${new Date().toISOString().replace(/[:.]/g, '-')}.sql.gz`;
+  const tmpPath = path.join(os.tmpdir(), filename);
+
+  try {
+    await fs.writeFile(tmpPath, gzipped);
+
+    await sendEmail({
+      to: DB_DUMP_RECIPIENT,
+      subject: `Autozord database dump - ${new Date().toLocaleDateString()}`,
+      html: wrapEmailHtml(`<p style='margin:0 0 16px;'>Database dump attached.</p><p style='margin:0;color:${EMAIL_COLORS.TEXT_MUTED};font-size:13px;'>${tableCount} tables, ${rowCount} rows, generated ${new Date().toISOString()}.</p>`),
+      category: 'DB_DUMP',
+      attachment: {
+        filename,
+        contentBase64: gzipped.toString('base64'),
+      },
+    });
+
+    return { email: DB_DUMP_RECIPIENT, tableCount, rowCount, sizeBytes: gzipped.length };
+  } finally {
+    await fs.unlink(tmpPath).catch(() => {});
+  }
+}
 
 function slugify(name: string): string {
   return name.toLowerCase().trim().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');

@@ -56,3 +56,9 @@ export async function getEmailLogs(req: Request, res: Response, next: NextFuncti
     res.json({ success: true, data: await adminService.getEmailLogs() });
   } catch (err) { next(err); }
 }
+
+export async function sendDatabaseDump(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    res.json({ success: true, data: await adminService.generateAndEmailDatabaseDump() });
+  } catch (err) { next(err); }
+}

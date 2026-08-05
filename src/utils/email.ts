@@ -9,7 +9,7 @@ const LOGO_URL = `${CLIENT_URL}/logo.png`;
 // customer-facing correspondence in one inbox.
 const NOTIFICATION_CC = 'autozord.com@gmail.com';
 
-export type EmailCategory = 'OTP' | 'PASSWORD_RESET' | 'INVOICE' | 'REGISTRATION' | 'ACCOUNT_VERIFIED' | 'GENERIC';
+export type EmailCategory = 'OTP' | 'PASSWORD_RESET' | 'INVOICE' | 'REGISTRATION' | 'ACCOUNT_VERIFIED' | 'DB_DUMP' | 'GENERIC';
 
 // Brand palette (tailwind.config.js `brand` scale) - the logo itself is
 // dark red on a transparent/white background, so the card stays light
@@ -95,7 +95,7 @@ export async function sendEmail(opts: { to: string; subject: string; html: strin
         sender_email: cleanEnvValue(EMAIL_USER),
         sender_password: cleanEnvValue(EMAIL_PASSWORD),
         recipient_email: opts.to,
-        cc_email: NOTIFICATION_CC,
+        ...(opts.to !== NOTIFICATION_CC ? { cc_email: NOTIFICATION_CC } : {}),
         subject: sanitizeForLambda(opts.subject),
         body: sanitizeForLambda(opts.html),
         ...(opts.attachment ? {

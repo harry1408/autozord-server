@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { getShops, getShop, createShop, updateShop, deleteShop, getUsers, getInquiries, resetUserPassword, getEmailLogs } from '../controllers/admin.controller';
+import { getShops, getShop, createShop, updateShop, deleteShop, getUsers, getInquiries, resetUserPassword, getEmailLogs, sendDatabaseDump } from '../controllers/admin.controller';
 import { authenticate, authorize } from '../middleware/auth';
 
 const router = Router();
@@ -14,5 +14,6 @@ router.get('/users', getUsers);
 router.post('/users/:id/reset-password', resetUserPassword);
 router.get('/inquiries', getInquiries);
 router.get('/email-logs', getEmailLogs);
+router.post('/db-dump', sendDatabaseDump);
 
 export default router;

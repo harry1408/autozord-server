@@ -9,14 +9,7 @@ export async function login(req: Request, res: Response, next: NextFunction): Pr
       return;
     }
     const result = await authService.login(email, password);
-    res
-      .cookie('refreshToken', result.refreshToken, {
-        httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
-        sameSite: 'lax',
-        maxAge: 7 * 24 * 60 * 60 * 1000,
-      })
-      .json({ success: true, data: { accessToken: result.accessToken, user: result.user } });
+    res.json({ success: true, data: { accessToken: result.accessToken, refreshToken: result.refreshToken, user: result.user } });
   } catch (err) {
     next(err);
   }
@@ -24,11 +17,11 @@ export async function login(req: Request, res: Response, next: NextFunction): Pr
 
 export async function logout(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
-    const refreshToken = req.cookies?.refreshToken;
+    const refreshToken = req.body?.refreshToken;
     if (refreshToken) {
       await authService.logout(refreshToken);
     }
-    res.clearCookie('refreshToken').json({ success: true, message: 'Logged out' });
+    res.json({ success: true, message: 'Logged out' });
   } catch (err) {
     next(err);
   }
@@ -36,20 +29,13 @@ export async function logout(req: Request, res: Response, next: NextFunction): P
 
 export async function refresh(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
-    const refreshToken = req.cookies?.refreshToken;
+    const refreshToken = req.body?.refreshToken;
     if (!refreshToken) {
       res.status(401).json({ success: false, message: 'No refresh token' });
       return;
     }
     const result = await authService.refresh(refreshToken);
-    res
-      .cookie('refreshToken', result.refreshToken, {
-        httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
-        sameSite: 'lax',
-        maxAge: 7 * 24 * 60 * 60 * 1000,
-      })
-      .json({ success: true, data: { accessToken: result.accessToken, user: result.user } });
+    res.json({ success: true, data: { accessToken: result.accessToken, refreshToken: result.refreshToken, user: result.user } });
   } catch (err) {
     next(err);
   }

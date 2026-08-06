@@ -67,9 +67,11 @@ export function generateAccessToken(payload: JwtPayload): string {
   return jwt.sign(payload, JWT_SECRET, { expiresIn: '15m' });
 }
 
+// 30d for persistent login - rotated on every refresh, so an actively-used
+// session effectively never expires; an idle one lapses after 30 days.
 export function generateRefreshToken(payload: JwtPayload): string {
   const REFRESH_SECRET = process.env.JWT_REFRESH_SECRET || 'autoshop360-refresh-secret-change-in-production';
-  return jwt.sign(payload, REFRESH_SECRET, { expiresIn: '7d' });
+  return jwt.sign(payload, REFRESH_SECRET, { expiresIn: '30d' });
 }
 
 export function verifyRefreshToken(token: string): JwtPayload {

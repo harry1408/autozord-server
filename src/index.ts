@@ -2,7 +2,6 @@ import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
 import compression from 'compression';
-import cookieParser from 'cookie-parser';
 import morgan from 'morgan';
 import path from 'path';
 import fs from 'fs';
@@ -59,7 +58,6 @@ app.use(cors({ origin: true, credentials: true }));
 app.use(compression());
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
-app.use(cookieParser());
 app.use(morgan('combined', { stream: { write: (msg) => logger.info(msg.trim()) } }));
 
 // Static uploads

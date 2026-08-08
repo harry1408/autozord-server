@@ -55,6 +55,12 @@ model Shop {
   currency          String?
   subscriptionPrice Float?
 
+  // Sequential invoice counter (per shop). Incremented atomically in a
+  // transaction on every auto-generated invoice number; the next number
+  // generated is this value + 1, so the @default(38) backfilled onto every
+  // pre-existing shop makes each shop's very next invoice come out 0039.
+  invoiceSequence Int @default(38)
+
   users             User[]
   customers         Customer[]
   vehicles          Vehicle[]
@@ -150,6 +156,7 @@ model Vehicle {
   vin          String?   @unique
   licensePlate String?
   color        String?
+  engineSize   String?
   mileage      Int?
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt

@@ -1,6 +1,6 @@
 import { prisma } from '../utils/prisma';
 import { AppError } from '../middleware/errorHandler';
-import { paginate, buildPaginationMeta, generateInvoiceNumber, shopScope } from '../utils/helpers';
+import { paginate, buildPaginationMeta, shopScope } from '../utils/helpers';
 import { sendEmail, wrapEmailHtml, EMAIL_COLORS } from '../utils/email';
 
 const INVOICE_INCLUDE = {
@@ -54,7 +54,7 @@ export async function getInvoice(id: string, shopId: string | null) {
 }
 
 export async function createInvoice(data: {
-  repairOrderId: string; taxRate?: number; discount?: number; notes?: string; dueDate?: string;
+  repairOrderId: string; taxRate?: number; discount?: number; notes?: string; dueDate?: string; invoiceNumber?: string;
 }, shopId: string | null) {
   const ro = await prisma.repairOrder.findFirst({
     where: { id: data.repairOrderId, ...shopScope(shopId), deletedAt: null },
@@ -65,6 +65,12 @@ export async function createInvoice(data: {
   const existing = await prisma.invoice.findFirst({ where: { repairOrderId: data.repairOrderId, deletedAt: null } });
   if (existing) throw new AppError('Invoice already exists for this repair order', 400);
 
+  const customNumber = data.invoiceNumber?.trim();
+  if (customNumber) {
+    const taken = await prisma.invoice.findUnique({ where: { invoiceNumber: customNumber } });
+    if (taken) throw new AppError('That invoice number is already in use', 400);
+  }
+
   const laborTotal = ro.laborLines.reduce((sum, l) => sum + l.subtotal, 0);
   const partsTotal = ro.partsLines.reduce((sum, p) => sum + p.subtotal, 0);
   const subtotal = laborTotal + partsTotal;
@@ -73,23 +79,43 @@ export async function createInvoice(data: {
   const taxAmount = ((subtotal - discount) * taxRate) / 100;
   const total = subtotal - discount + taxAmount;
 
-  const inv = await prisma.invoice.create({
-    data: {
-      shopId: ro.shopId,
-      invoiceNumber: generateInvoiceNumber(),
-      repairOrderId: data.repairOrderId,
-      customerId: ro.customerId,
-      subtotal,
-      taxRate,
-      taxAmount,
-      discount,
-      total,
-      balance: total,
-      notes: data.notes,
-      dueDate: data.dueDate ? new Date(data.dueDate) : undefined,
-    },
-    include: INVOICE_INCLUDE,
-  });
+  let inv;
+  try {
+    inv = await prisma.$transaction(async (tx) => {
+      // Sequential per shop, not random - increment happens inside the same
+      // transaction as the invoice insert so two concurrent creates can't
+      // land on the same number.
+      const invoiceNumber = customNumber ?? await (async () => {
+        const shop = await tx.shop.update({
+          where: { id: ro.shopId! },
+          data: { invoiceSequence: { increment: 1 } },
+        });
+        const dateStr = new Date().toISOString().slice(0, 10).replace(/-/g, '');
+        return `INV-${dateStr}-${String(shop.invoiceSequence).padStart(4, '0')}`;
+      })();
+
+      return tx.invoice.create({
+        data: {
+          shopId: ro.shopId,
+          invoiceNumber,
+          repairOrderId: data.repairOrderId,
+          customerId: ro.customerId,
+          subtotal,
+          taxRate,
+          taxAmount,
+          discount,
+          total,
+          balance: total,
+          notes: data.notes,
+          dueDate: data.dueDate ? new Date(data.dueDate) : undefined,
+        },
+        include: INVOICE_INCLUDE,
+      });
+    });
+  } catch (err: any) {
+    if (err?.code === 'P2002') throw new AppError('That invoice number is already in use', 400);
+    throw err;
+  }
 
   await prisma.repairOrder.update({ where: { id: data.repairOrderId }, data: { status: 'INVOICED' } });
   return inv;
@@ -131,10 +157,6 @@ export async function sendInvoiceEmail(id: string, shopId: string | null, emailO
   const trimmedOverride = emailOverride?.trim();
   const targetEmail = trimmedOverride || inv.customer.email;
   if (!targetEmail) throw new AppError('Customer email is required', 400);
-
-  if (trimmedOverride && trimmedOverride !== inv.customer.email) {
-    await prisma.customer.update({ where: { id: inv.customer.id }, data: { email: trimmedOverride } });
-  }
 
   const settings = await prisma.shopSettings.findFirst({ where: { shopId: inv.shopId } });
   const shopName = settings?.shopName ?? 'Autozord';

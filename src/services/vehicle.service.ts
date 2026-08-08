@@ -68,6 +68,7 @@ export async function createVehicle(data: {
   vin?: string;
   licensePlate?: string;
   color?: string;
+  engineSize?: string;
   mileage?: number;
 }, shopId: string | null) {
   if (!data.customerId || !data.make || !data.model || !data.year) {
@@ -87,6 +88,7 @@ export async function updateVehicle(id: string, data: Partial<{
   vin: string;
   licensePlate: string;
   color: string;
+  engineSize: string;
   mileage: number;
 }>, shopId: string | null) {
   const existing = await prisma.vehicle.findFirst({ where: { id, ...shopScope(shopId), deletedAt: null } });

@@ -171,14 +171,15 @@ model Vehicle {
 }
 
 model Technician {
-  id              String   @id @default(uuid())
+  id              String    @id @default(uuid())
   shopId          String?
-  userId          String   @unique
+  userId          String    @unique
   specializations String?
-  hourlyRate      Float    @default(0)
-  isActive        Boolean  @default(true)
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  hourlyRate      Float     @default(0)
+  isActive        Boolean   @default(true)
+  deletedAt       DateTime?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
 
   shop        Shop?                   @relation(fields: [shopId], references: [id])
   user        User                    @relation(fields: [userId], references: [id])

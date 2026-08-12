@@ -86,7 +86,7 @@ export async function getRepairOrdersReport(startDate: string | undefined, endDa
 export async function getTechnicianReport(startDate: string | undefined, endDate: string | undefined, shopId: string | null) {
   const range = dateRange(startDate, endDate);
   const technicians = await prisma.technician.findMany({
-    where: shopScope(shopId),
+    where: { ...shopScope(shopId), deletedAt: null },
     include: {
       user: { select: { firstName: true, lastName: true } },
       assignments: {

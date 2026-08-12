@@ -16,7 +16,7 @@ const TECH_INCLUDE = {
 
 export async function getTechnicians({ shopId, page, limit }: { shopId: string | null; page: number; limit: number }) {
   const { take, skip } = paginate(page, limit);
-  const where = shopScope(shopId);
+  const where = { ...shopScope(shopId), deletedAt: null };
   const [data, total] = await Promise.all([
     prisma.technician.findMany({
       where,
@@ -32,7 +32,7 @@ export async function getTechnicians({ shopId, page, limit }: { shopId: string |
 }
 
 export async function getTechnician(id: string, shopId: string | null) {
-  const tech = await prisma.technician.findFirst({ where: { id, ...shopScope(shopId) }, include: TECH_INCLUDE });
+  const tech = await prisma.technician.findFirst({ where: { id, ...shopScope(shopId), deletedAt: null }, include: TECH_INCLUDE });
   if (!tech) throw new AppError('Technician not found', 404);
   return tech;
 }
@@ -71,7 +71,7 @@ export async function createTechnician(data: {
 export async function updateTechnician(id: string, data: Partial<{
   firstName: string; lastName: string; specializations: string; hourlyRate: number; isActive: boolean;
 }>, shopId: string | null) {
-  const tech = await prisma.technician.findFirst({ where: { id, ...shopScope(shopId) } });
+  const tech = await prisma.technician.findFirst({ where: { id, ...shopScope(shopId), deletedAt: null } });
   if (!tech) throw new AppError('Technician not found', 404);
 
   const { firstName, lastName, ...techData } = data;
@@ -87,7 +87,7 @@ export async function updateTechnician(id: string, data: Partial<{
 }
 
 export async function deleteTechnician(id: string, shopId: string | null) {
-  const tech = await prisma.technician.findFirst({ where: { id, ...shopScope(shopId) } });
+  const tech = await prisma.technician.findFirst({ where: { id, ...shopScope(shopId), deletedAt: null } });
   if (!tech) throw new AppError('Technician not found', 404);
-  return prisma.technician.update({ where: { id }, data: { isActive: false } });
+  return prisma.technician.update({ where: { id }, data: { deletedAt: new Date(), isActive: false } });
 }

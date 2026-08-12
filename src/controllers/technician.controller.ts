@@ -29,6 +29,6 @@ export async function updateTechnician(req: Request, res: Response, next: NextFu
 export async function deleteTechnician(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
     await techService.deleteTechnician(req.params.id, req.user!.shopId);
-    res.json({ success: true, message: 'Technician deactivated' });
+    res.json({ success: true, message: 'Technician removed' });
   } catch (err) { next(err); }
 }

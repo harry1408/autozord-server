@@ -65,7 +65,7 @@ export async function createInvoice(data: {
   const existing = await prisma.invoice.findFirst({ where: { repairOrderId: data.repairOrderId, deletedAt: null } });
   if (existing) throw new AppError('Invoice already exists for this repair order', 400);
 
-  const customNumber = data.invoiceNumber?.trim();
+  const customNumber = data.invoiceNumber?.trim() || undefined;
   if (customNumber) {
     const taken = await prisma.invoice.findUnique({ where: { invoiceNumber: customNumber } });
     if (taken) throw new AppError('That invoice number is already in use', 400);

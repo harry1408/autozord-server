@@ -47,7 +47,54 @@ export async function createSignup(data: {
   }
 
   const existingUser = await prisma.user.findUnique({ where: { email: data.email } });
-  if (existingUser) throw new AppError('Email already in use', 400);
+  if (existingUser && existingUser.emailVerifiedAt) {
+    throw new AppError('Email already in use', 400);
+  }
+
+  const passwordHash = await bcrypt.hash(data.password, 10);
+  const otp = generateOtp();
+  const otpExpiresAt = new Date(Date.now() + OTP_TTL_MINUTES * 60 * 1000);
+  const { currency, amount } = getSubscriptionPrice(data.country, data.planType as 'MONTHLY' | 'YEARLY');
+
+  // An existing-but-unverified user is a leftover from a signup that was
+  // never finished (OTP never entered, or it expired) - the email is
+  // "taken" in the DB but nobody ever proved they own it, so treat this as
+  // resuming that abandoned attempt rather than a conflict: refresh the
+  // same shop/user with whatever was just submitted and send a fresh OTP,
+  // instead of dead-ending with "Email already in use" with no way back in.
+  if (existingUser) {
+    const shop = await prisma.$transaction(async (tx) => {
+      const shop = await tx.shop.update({
+        where: { id: existingUser.shopId! },
+        data: {
+          name: data.shopName,
+          planType: data.planType,
+          country: data.country,
+          currency,
+          subscriptionPrice: amount,
+          address: data.address,
+          state: data.state,
+          city: data.city,
+          zip: data.zip,
+        },
+      });
+      await tx.user.update({
+        where: { id: existingUser.id },
+        data: {
+          passwordHash,
+          firstName: data.firstName,
+          lastName: data.lastName,
+          emailOtp: otp,
+          emailOtpExpiresAt: otpExpiresAt,
+          termsAcceptedAt: new Date(),
+        },
+      });
+      return shop;
+    });
+
+    await sendOtpEmail(data.email, data.firstName, otp);
+    return { shopId: shop.id, shopName: shop.name };
+  }
 
   const baseSlug = slugify(data.shopName);
   let slug = baseSlug;
@@ -57,10 +104,6 @@ export async function createSignup(data: {
   }
 
   const trialEndsAt = new Date(Date.now() + TRIAL_DAYS * 24 * 60 * 60 * 1000);
-  const passwordHash = await bcrypt.hash(data.password, 10);
-  const otp = generateOtp();
-  const otpExpiresAt = new Date(Date.now() + OTP_TTL_MINUTES * 60 * 1000);
-  const { currency, amount } = getSubscriptionPrice(data.country, data.planType as 'MONTHLY' | 'YEARLY');
 
   const { shop } = await prisma.$transaction(async (tx) => {
     const shop = await tx.shop.create({

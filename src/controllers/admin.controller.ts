@@ -59,7 +59,7 @@ export async function getInquiries(req: Request, res: Response, next: NextFuncti
 
 export async function resetUserPassword(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
-    res.json({ success: true, data: await adminService.resetUserPassword(req.params.id) });
+    res.json({ success: true, data: await adminService.resetUserPassword(req.params.id, req.body?.password) });
   } catch (err) { next(err); }
 }
 

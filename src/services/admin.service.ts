@@ -71,11 +71,15 @@ export async function getEmailLogs() {
   });
 }
 
-export async function resetUserPassword(id: string) {
+export async function resetUserPassword(id: string, customPassword?: string) {
   const user = await prisma.user.findFirst({ where: { id, deletedAt: null } });
   if (!user) throw new AppError('User not found', 404);
 
-  const password = generateTempPassword();
+  if (customPassword !== undefined && customPassword.length < 6) {
+    throw new AppError('Password must be at least 6 characters', 400);
+  }
+
+  const password = customPassword || generateTempPassword();
   const passwordHash = await bcrypt.hash(password, 10);
   await prisma.user.update({ where: { id }, data: { passwordHash, refreshToken: null } });
 

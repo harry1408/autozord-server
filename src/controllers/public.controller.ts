@@ -41,9 +41,13 @@ export async function createInquiry(req: Request, res: Response, next: NextFunct
 
 export async function signup(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
-    const { shopName, firstName, lastName, email, password, planType, acceptedTerms } = req.body;
+    const { shopName, firstName, lastName, email, password, planType, acceptedTerms, address, state, city, zip } = req.body;
     if (!shopName || !firstName || !lastName || !email || !password || !planType) {
       res.status(400).json({ success: false, message: 'All fields are required' });
+      return;
+    }
+    if (!state || !city || !zip) {
+      res.status(400).json({ success: false, message: 'State/Province, city, and postal code are required' });
       return;
     }
     if (password.length < 6) {
@@ -56,8 +60,11 @@ export async function signup(req: Request, res: Response, next: NextFunction): P
     }
     // Region is always re-derived from the request IP here, never trusted
     // from the client, so it can't be spoofed by editing request state.
+    // This also doubles as the shop's address country - state/city/zip are
+    // ordinary profile fields with no pricing implication, so those are
+    // taken from the client as submitted.
     const country = detectRegionFromIp(req.ip);
-    const data = await signupService.createSignup({ shopName, firstName, lastName, email, password, planType, country, acceptedTerms });
+    const data = await signupService.createSignup({ shopName, firstName, lastName, email, password, planType, country, acceptedTerms, address, state, city, zip });
     res.status(201).json({
       success: true,
       data,

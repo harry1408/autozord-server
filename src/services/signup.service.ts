@@ -47,6 +47,10 @@ export async function createSignup(data: {
   planType: string;
   country: string;
   acceptedTerms: boolean;
+  address?: string;
+  state: string;
+  city: string;
+  zip: string;
 }) {
   if (!SELF_SERVE_PLANS.includes(data.planType)) {
     throw new AppError('Invalid plan selected', 400);
@@ -85,6 +89,10 @@ export async function createSignup(data: {
         country: data.country,
         currency,
         subscriptionPrice: amount,
+        address: data.address,
+        state: data.state,
+        city: data.city,
+        zip: data.zip,
       },
     });
 

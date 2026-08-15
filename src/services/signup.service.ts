@@ -3,29 +3,13 @@ import { AppError } from '../middleware/errorHandler';
 import bcrypt from 'bcryptjs';
 import { sendEmail, wrapEmailHtml, EMAIL_COLORS } from '../utils/email';
 import { isValidRegion, getSubscriptionPrice } from '../utils/pricing';
+import { OTP_TTL_MINUTES, generateOtp, sendOtpEmail } from '../utils/otp';
 
 const SELF_SERVE_PLANS = ['MONTHLY', 'YEARLY'];
 const TRIAL_DAYS = 7;
-const OTP_TTL_MINUTES = 10;
 
 function slugify(name: string): string {
   return name.toLowerCase().trim().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
-}
-
-function generateOtp(): string {
-  return String(Math.floor(100000 + Math.random() * 900000));
-}
-
-// NOTE: HTML attributes here must use single quotes, not double quotes.
-// The email-sending Lambda's API Gateway uses a template that corrupts the
-// JSON payload whenever a `"` appears inside a field value.
-async function sendOtpEmail(email: string, firstName: string, otp: string): Promise<void> {
-  await sendEmail({
-    to: email,
-    subject: 'Verify your Autozord account',
-    html: wrapEmailHtml(`<p style='margin:0 0 16px;'>Hi ${firstName},</p><p style='margin:0 0 20px;'>Your Autozord verification code is:</p><table role='presentation' cellpadding='0' cellspacing='0' style='margin:0 0 20px;'><tr><td bgcolor='${EMAIL_COLORS.BRAND_RED_TINT}' style='background-color:${EMAIL_COLORS.BRAND_RED_TINT};border:1px solid ${EMAIL_COLORS.BRAND_RED_BORDER};border-radius:8px;padding:16px 28px;text-align:center;'><span style='font-size:32px;font-weight:bold;letter-spacing:8px;color:${EMAIL_COLORS.BRAND_RED};'>${otp}</span></td></tr></table><p style='margin:0;color:${EMAIL_COLORS.TEXT_MUTED};font-size:13px;'>This code expires in ${OTP_TTL_MINUTES} minutes.</p>`),
-    category: 'OTP',
-  });
 }
 
 async function sendRegistrationReceivedEmail(email: string, firstName: string, planType: string | null): Promise<void> {
@@ -33,7 +17,7 @@ async function sendRegistrationReceivedEmail(email: string, firstName: string, p
   await sendEmail({
     to: email,
     subject: 'Autozord registration received',
-    html: wrapEmailHtml(`<p style='margin:0 0 16px;'>Hi ${firstName},</p><p style='margin:0 0 16px;'>Thanks for verifying your email. We'll review your shop's details next, and send you a payment link for your ${planLabel} plan shortly.</p><p style='margin:0;color:${EMAIL_COLORS.TEXT_MUTED};font-size:13px;'>You'll get another email as soon as your account is verified and ready to use.</p>`),
+    html: wrapEmailHtml(`<p style='margin:0 0 16px;'>Hi ${firstName},</p><p style='margin:0 0 16px;'>Thanks for verifying your email. You can log in now - we're reviewing your shop's registration and will notify you as soon as it's fully verified.</p><p style='margin:0;color:${EMAIL_COLORS.TEXT_MUTED};font-size:13px;'>Your ${planLabel} plan trial has already started.</p>`),
     category: 'REGISTRATION',
   });
 }

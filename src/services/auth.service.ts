@@ -25,16 +25,6 @@ function assertEmailVerified(user: { emailVerifiedAt: Date | null }): void {
   }
 }
 
-async function assertShopAllowsLogin(user: { role: string; shopId: string | null }): Promise<void> {
-  if (user.role === 'GLOBAL_ADMIN' || !user.shopId) return;
-  const shop = await prisma.shop.findUnique({ where: { id: user.shopId } });
-  if (!shop) throw new AppError('Shop not found', 404);
-  const { status } = getSubscriptionState(shop);
-  if (!isAllowedToOperate(status)) {
-    throw new AppError(SUBSCRIPTION_LOGIN_MESSAGES[status] ?? 'Access is currently restricted', 403);
-  }
-}
-
 function hashToken(token: string): string {
   return crypto.createHash('sha256').update(token).digest('hex');
 }
@@ -51,6 +41,23 @@ function sanitizeUser(user: { id: string; email: string; firstName: string; last
   };
 }
 
+// Returns the shop's subscription status without blocking login for
+// PENDING_VERIFICATION - the client shows a full-screen lock overlay for
+// that state instead, across every role, so a newly registered shop admin
+// (or anyone they've invited in the meantime) can at least see their own
+// account is real while the shop itself is still being confirmed.
+// SUSPENDED/EXPIRED still block login entirely, unchanged.
+async function getShopLoginStatus(user: { role: string; shopId: string | null }): Promise<string | null> {
+  if (user.role === 'GLOBAL_ADMIN' || !user.shopId) return null;
+  const shop = await prisma.shop.findUnique({ where: { id: user.shopId } });
+  if (!shop) throw new AppError('Shop not found', 404);
+  const { status } = getSubscriptionState(shop);
+  if (status !== 'PENDING_VERIFICATION' && !isAllowedToOperate(status)) {
+    throw new AppError(SUBSCRIPTION_LOGIN_MESSAGES[status] ?? 'Access is currently restricted', 403);
+  }
+  return status;
+}
+
 export async function login(email: string, password: string) {
   const user = await prisma.user.findUnique({ where: { email } });
   if (!user || !user.isActive || user.deletedAt) {
@@ -63,7 +70,7 @@ export async function login(email: string, password: string) {
   }
 
   assertEmailVerified(user);
-  await assertShopAllowsLogin(user);
+  const shopStatus = await getShopLoginStatus(user);
 
   const payload: JwtPayload = { userId: user.id, email: user.email, role: user.role, shopId: user.shopId };
   const accessToken = generateAccessToken(payload);
@@ -71,7 +78,7 @@ export async function login(email: string, password: string) {
 
   await prisma.user.update({ where: { id: user.id }, data: { refreshToken } });
 
-  return { accessToken, refreshToken, user: sanitizeUser(user) };
+  return { accessToken, refreshToken, user: { ...sanitizeUser(user), shopStatus } };
 }
 
 export async function logout(refreshToken: string) {
@@ -97,7 +104,7 @@ export async function refresh(refreshToken: string) {
   }
 
   assertEmailVerified(user);
-  await assertShopAllowsLogin(user);
+  const shopStatus = await getShopLoginStatus(user);
 
   const newPayload: JwtPayload = { userId: user.id, email: user.email, role: user.role, shopId: user.shopId };
   const newAccessToken = generateAccessToken(newPayload);
@@ -105,7 +112,7 @@ export async function refresh(refreshToken: string) {
 
   await prisma.user.update({ where: { id: user.id }, data: { refreshToken: newRefreshToken } });
 
-  return { accessToken: newAccessToken, refreshToken: newRefreshToken, user: sanitizeUser(user) };
+  return { accessToken: newAccessToken, refreshToken: newRefreshToken, user: { ...sanitizeUser(user), shopStatus } };
 }
 
 export async function getMe(userId: string) {
@@ -113,7 +120,15 @@ export async function getMe(userId: string) {
   if (!user || user.deletedAt) {
     throw new AppError('User not found', 404);
   }
-  return sanitizeUser(user);
+  // Non-blocking here (unlike login/refresh) - a token already issued stays
+  // valid on page reload even if shop status changed since; this is purely
+  // so the client can (re)show the lock overlay after a refresh.
+  let shopStatus: string | null = null;
+  if (user.role !== 'GLOBAL_ADMIN' && user.shopId) {
+    const shop = await prisma.shop.findUnique({ where: { id: user.shopId } });
+    if (shop) shopStatus = getSubscriptionState(shop).status;
+  }
+  return { ...sanitizeUser(user), shopStatus };
 }
 
 export async function forgotPassword(email: string): Promise<void> {

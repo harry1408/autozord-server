@@ -8,6 +8,7 @@ import path from 'path';
 import fs from 'fs/promises';
 import { sendEmail, wrapEmailHtml, CLIENT_URL, EMAIL_COLORS } from '../utils/email';
 import { generateDatabaseDumpSql } from '../utils/dbDump';
+import { OTP_TTL_MINUTES, generateOtp, sendOtpEmail } from '../utils/otp';
 
 const DB_DUMP_RECIPIENT = 'autozord.com@gmail.com';
 
@@ -150,6 +151,10 @@ export async function createShop(data: {
     if (existingUser) throw new AppError('Email already in use', 400);
   }
 
+  // Starts unverified like a self-signup shop - Global Admin still has to
+  // explicitly confirm/verify it (e.g. payment) before it's fully active.
+  // The client shows a lock-screen overlay for PENDING_VERIFICATION rather
+  // than blocking login outright, so the new admin can still sign in.
   const shop = await prisma.shop.create({
     data: {
       name: data.name,
@@ -160,12 +165,15 @@ export async function createShop(data: {
       zip: data.zip,
       phone: data.phone,
       email: data.email,
+      isVerified: false,
     },
   });
 
   let adminUser = null;
   if (data.adminEmail && data.adminPassword) {
     const passwordHash = await bcrypt.hash(data.adminPassword, 10);
+    const otp = generateOtp();
+    const otpExpiresAt = new Date(Date.now() + OTP_TTL_MINUTES * 60 * 1000);
     adminUser = await prisma.user.create({
       data: {
         email: data.adminEmail,
@@ -174,9 +182,13 @@ export async function createShop(data: {
         lastName: data.adminLastName ?? 'Admin',
         role: 'SHOP_ADMIN',
         shopId: shop.id,
+        emailVerifiedAt: null,
+        emailOtp: otp,
+        emailOtpExpiresAt: otpExpiresAt,
       },
       select: { id: true, email: true, firstName: true, lastName: true, role: true },
     });
+    await sendOtpEmail(data.adminEmail, adminUser.firstName, otp);
   }
 
   return { shop, adminUser };

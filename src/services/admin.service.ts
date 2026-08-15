@@ -87,12 +87,16 @@ export async function getShops() {
     orderBy: { createdAt: 'desc' },
     include: {
       _count: { select: { users: true, customers: true, vehicles: true, repairOrders: true } },
+      settings: { select: { logoUrl: true } },
     },
   });
 }
 
 export async function getShop(id: string) {
-  const shop = await prisma.shop.findFirst({ where: { id, deletedAt: null } });
+  const shop = await prisma.shop.findFirst({
+    where: { id, deletedAt: null },
+    include: { settings: { select: { logoUrl: true } } },
+  });
   if (!shop) throw new AppError('Shop not found', 404);
 
   const [users, customerCount, vehicleCount, repairOrderCount, openRepairOrderCount, revenue] = await Promise.all([
@@ -197,19 +201,32 @@ export async function createShop(data: {
 export async function updateShop(id: string, data: Partial<{
   name: string; address: string; city: string; state: string; zip: string; phone: string; email: string; isActive: boolean;
   planType: string; isVerified: boolean; trialEndsAt: string; paidUntil: string;
-  country: string; currency: string; subscriptionPrice: number;
+  country: string; currency: string; subscriptionPrice: number; logoUrl: string;
 }>) {
   const existing = await prisma.shop.findFirst({ where: { id, deletedAt: null } });
   if (!existing) throw new AppError('Shop not found', 404);
 
+  // logoUrl lives on ShopSettings (shared with the shop's own self-service
+  // Settings page), not on Shop itself, so it's upserted separately here
+  // rather than spread into the Shop update below.
+  const { logoUrl, ...shopData } = data;
+
   const updated = await prisma.shop.update({
     where: { id },
     data: {
-      ...data,
-      trialEndsAt: data.trialEndsAt !== undefined ? (data.trialEndsAt ? new Date(data.trialEndsAt) : null) : undefined,
-      paidUntil: data.paidUntil !== undefined ? (data.paidUntil ? new Date(data.paidUntil) : null) : undefined,
+      ...shopData,
+      trialEndsAt: shopData.trialEndsAt !== undefined ? (shopData.trialEndsAt ? new Date(shopData.trialEndsAt) : null) : undefined,
+      paidUntil: shopData.paidUntil !== undefined ? (shopData.paidUntil ? new Date(shopData.paidUntil) : null) : undefined,
     },
   });
+
+  if (logoUrl !== undefined) {
+    await prisma.shopSettings.upsert({
+      where: { shopId: id },
+      update: { logoUrl },
+      create: { shopId: id, logoUrl },
+    });
+  }
 
   if (data.isVerified === true && !existing.isVerified) {
     await sendShopVerifiedEmail(updated.id, updated.name);

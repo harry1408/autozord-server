@@ -83,7 +83,7 @@ export async function verifyOtp(req: Request, res: Response, next: NextFunction)
     await signupService.verifyOtp(email, otp);
     res.json({
       success: true,
-      message: 'Email verified. We\'ll verify your account and email you once you can log in.',
+      message: 'Email verified. You can log in now while we finish reviewing your shop\'s registration.',
     });
   } catch (err) { next(err); }
 }

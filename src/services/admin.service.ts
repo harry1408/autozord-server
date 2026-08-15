@@ -9,6 +9,7 @@ import fs from 'fs/promises';
 import { sendEmail, wrapEmailHtml, CLIENT_URL, EMAIL_COLORS } from '../utils/email';
 import { generateDatabaseDumpSql } from '../utils/dbDump';
 import { OTP_TTL_MINUTES, generateOtp, sendOtpEmail } from '../utils/otp';
+import { archiveCurrentLogo } from '../utils/shopLogo';
 
 const DB_DUMP_RECIPIENT = 'autozord.com@gmail.com';
 
@@ -221,6 +222,7 @@ export async function updateShop(id: string, data: Partial<{
   });
 
   if (logoUrl !== undefined) {
+    await archiveCurrentLogo(id, logoUrl);
     await prisma.shopSettings.upsert({
       where: { shopId: id },
       update: { logoUrl },
@@ -233,6 +235,35 @@ export async function updateShop(id: string, data: Partial<{
   }
 
   return updated;
+}
+
+export async function getShopLogoHistory(shopId: string) {
+  const shop = await prisma.shop.findFirst({ where: { id: shopId, deletedAt: null } });
+  if (!shop) throw new AppError('Shop not found', 404);
+
+  const settings = await prisma.shopSettings.findUnique({ where: { shopId } });
+  const history = await prisma.shopLogoHistory.findMany({
+    where: { shopId, deletedAt: null },
+    orderBy: { createdAt: 'desc' },
+  });
+
+  // The currently-active logo isn't "history" - filter it out in case it
+  // also happens to appear as an archived row (e.g. after a restore).
+  return history.filter(h => h.logoUrl !== settings?.logoUrl);
+}
+
+export async function restoreShopLogo(shopId: string, historyId: string) {
+  const entry = await prisma.shopLogoHistory.findFirst({ where: { id: historyId, shopId, deletedAt: null } });
+  if (!entry) throw new AppError('Logo history entry not found', 404);
+
+  // Reuses the same archive-then-overwrite path as a normal upload, so
+  // whatever's currently active gets preserved in history too, not lost.
+  await archiveCurrentLogo(shopId, entry.logoUrl);
+  return prisma.shopSettings.upsert({
+    where: { shopId },
+    update: { logoUrl: entry.logoUrl },
+    create: { shopId, logoUrl: entry.logoUrl },
+  });
 }
 
 export async function deleteShop(id: string) {

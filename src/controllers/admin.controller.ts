@@ -33,6 +33,18 @@ export async function deleteShop(req: Request, res: Response, next: NextFunction
   } catch (err) { next(err); }
 }
 
+export async function getShopLogoHistory(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    res.json({ success: true, data: await adminService.getShopLogoHistory(req.params.id) });
+  } catch (err) { next(err); }
+}
+
+export async function restoreShopLogo(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    res.json({ success: true, data: await adminService.restoreShopLogo(req.params.id, req.params.historyId) });
+  } catch (err) { next(err); }
+}
+
 export async function getUsers(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
     res.json({ success: true, data: await adminService.getUsers() });

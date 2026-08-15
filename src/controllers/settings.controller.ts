@@ -2,6 +2,7 @@ import { Request, Response, NextFunction } from 'express';
 import { prisma } from '../utils/prisma';
 import { AppError } from '../middleware/errorHandler';
 import { getSubscriptionState } from '../utils/subscription';
+import { archiveCurrentLogo } from '../utils/shopLogo';
 
 export async function getSettings(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
@@ -68,6 +69,10 @@ export async function updateSettings(req: Request, res: Response, next: NextFunc
         throw new AppError('Country, state, city, and postal code are all required', 400);
       }
       await prisma.shop.update({ where: { id: shopId }, data: { country, state, city, zip } });
+    }
+
+    if (settingsBody.logoUrl !== undefined) {
+      await archiveCurrentLogo(shopId, settingsBody.logoUrl);
     }
 
     const settings = await prisma.shopSettings.upsert({

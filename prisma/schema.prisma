@@ -80,6 +80,7 @@ model Shop {
   suppliers         Supplier[]
   settings          ShopSettings?
   inquiryTargets    InquiryShop[]
+  logoHistory       ShopLogoHistory[]
 }
 
 model User {
@@ -477,6 +478,21 @@ model ShopSettings {
   updatedAt DateTime @updatedAt
 
   shop Shop? @relation(fields: [shopId], references: [id])
+}
+
+// Archived copy of every logo a shop has ever had on ShopSettings.logoUrl -
+// written right before that field is overwritten (from either the shop's
+// own Settings page or the admin panel), so a past logo is never actually
+// lost and can be restored later. deletedAt follows the same soft-delete
+// convention as the rest of the schema, even though nothing sets it yet.
+model ShopLogoHistory {
+  id        String    @id @default(uuid())
+  shopId    String
+  logoUrl   String
+  createdAt DateTime  @default(now())
+  deletedAt DateTime?
+
+  shop Shop @relation(fields: [shopId], references: [id])
 }
 
 model Inquiry {

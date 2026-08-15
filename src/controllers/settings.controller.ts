@@ -9,13 +9,22 @@ export async function getSettings(req: Request, res: Response, next: NextFunctio
     if (!shopId) throw new AppError('A shop context is required to view settings', 400);
 
     let settings = await prisma.shopSettings.findFirst({ where: { shopId } });
+    const shop = await prisma.shop.findUnique({ where: { id: shopId } });
     if (!settings) {
-      const shop = await prisma.shop.findUnique({ where: { id: shopId } });
       settings = await prisma.shopSettings.create({
         data: { shopId, shopName: shop?.name ?? 'My Auto Shop' },
       });
     }
-    res.json({ success: true, data: settings });
+    res.json({
+      success: true,
+      data: {
+        ...settings,
+        country: shop?.country ?? null,
+        state: shop?.state ?? null,
+        city: shop?.city ?? null,
+        zip: shop?.zip ?? null,
+      },
+    });
   } catch (err) { next(err); }
 }
 
@@ -49,11 +58,34 @@ export async function updateSettings(req: Request, res: Response, next: NextFunc
     const shopId = req.user!.shopId;
     if (!shopId) throw new AppError('A shop context is required to update settings', 400);
 
+    // country/state/city/zip live on Shop (used by the public directory and
+    // inquiry filtering), not ShopSettings - split them out so Prisma
+    // doesn't reject the ShopSettings upsert with unknown-argument errors.
+    const { country, state, city, zip, ...settingsBody } = req.body;
+    const hasLocationFields = [country, state, city, zip].some(v => v !== undefined);
+    if (hasLocationFields) {
+      if (!country || !state || !city || !zip) {
+        throw new AppError('Country, state, city, and postal code are all required', 400);
+      }
+      await prisma.shop.update({ where: { id: shopId }, data: { country, state, city, zip } });
+    }
+
     const settings = await prisma.shopSettings.upsert({
       where: { shopId },
-      update: req.body,
-      create: { shopId, shopName: req.body.shopName ?? 'My Auto Shop', ...req.body },
+      update: settingsBody,
+      create: { shopId, shopName: settingsBody.shopName ?? 'My Auto Shop', ...settingsBody },
     });
-    res.json({ success: true, data: settings });
+
+    const shop = await prisma.shop.findUnique({ where: { id: shopId } });
+    res.json({
+      success: true,
+      data: {
+        ...settings,
+        country: shop?.country ?? null,
+        state: shop?.state ?? null,
+        city: shop?.city ?? null,
+        zip: shop?.zip ?? null,
+      },
+    });
   } catch (err) { next(err); }
 }

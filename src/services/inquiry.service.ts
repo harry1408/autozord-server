@@ -7,7 +7,7 @@ const VALID_STATUSES = ['NEW', 'VIEWED', 'RESPONDED', 'DECLINED'];
 export async function getPublicShops() {
   return prisma.shop.findMany({
     where: { isActive: true, deletedAt: null },
-    select: { id: true, name: true, city: true, state: true, phone: true },
+    select: { id: true, name: true, city: true, state: true, country: true, phone: true },
     orderBy: { name: 'asc' },
   });
 }

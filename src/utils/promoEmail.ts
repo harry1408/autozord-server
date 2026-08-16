@@ -1,6 +1,6 @@
 import { wrapEmailHtml } from './email';
 
-export type PromoRegion = 'US' | 'CA';
+export type PromoRegion = 'US' | 'CA' | 'IN';
 
 // Generic trial-offer copy, no pricing mentioned - only the closing line
 // differs by region. Keep this in sync with the client's PromotionsPage
@@ -31,10 +31,14 @@ const REGION_COPY: Record<PromoRegion, { subject: string; regionLine: string }> 
     subject: 'Give your shop a system it deserves - try Autozord free for 30 days',
     regionLine: 'Join repair shops across Canada, from coast to coast, already running their day on Autozord.',
   },
+  IN: {
+    subject: 'Give your shop a system it deserves - try Autozord free for 30 days',
+    regionLine: 'Join repair shops across India already running their day on Autozord.',
+  },
 };
 
 export function isValidPromoRegion(value: unknown): value is PromoRegion {
-  return value === 'US' || value === 'CA';
+  return value === 'US' || value === 'CA' || value === 'IN';
 }
 
 export function buildPromoEmail(region: PromoRegion): { subject: string; html: string } {

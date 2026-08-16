@@ -41,7 +41,7 @@ export async function createInquiry(req: Request, res: Response, next: NextFunct
 
 export async function signup(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
-    const { shopName, firstName, lastName, email, password, planType, acceptedTerms, address, state, city, zip } = req.body;
+    const { shopName, firstName, lastName, email, password, planType, acceptedTerms, address, state, city, zip, extendedTrial } = req.body;
     if (!shopName || !firstName || !lastName || !email || !password || !planType) {
       res.status(400).json({ success: false, message: 'All fields are required' });
       return;
@@ -64,7 +64,7 @@ export async function signup(req: Request, res: Response, next: NextFunction): P
     // ordinary profile fields with no pricing implication, so those are
     // taken from the client as submitted.
     const country = detectRegionFromIp(req.ip);
-    const data = await signupService.createSignup({ shopName, firstName, lastName, email, password, planType, country, acceptedTerms, address, state, city, zip });
+    const data = await signupService.createSignup({ shopName, firstName, lastName, email, password, planType, country, acceptedTerms, address, state, city, zip, extendedTrial: !!extendedTrial });
     res.status(201).json({
       success: true,
       data,

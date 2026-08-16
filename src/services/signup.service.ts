@@ -7,6 +7,10 @@ import { OTP_TTL_MINUTES, generateOtp, sendOtpEmail } from '../utils/otp';
 
 const SELF_SERVE_PLANS = ['MONTHLY', 'YEARLY'];
 const TRIAL_DAYS = 7;
+// Selected via the "30-Day Free Trial" button on the signup form (always
+// paired with MONTHLY pricing) - matches the offer advertised in the
+// Promotions emails, which promise 30 days rather than the default 7.
+const EXTENDED_TRIAL_DAYS = 30;
 
 function slugify(name: string): string {
   return name.toLowerCase().trim().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
@@ -35,6 +39,7 @@ export async function createSignup(data: {
   state: string;
   city: string;
   zip: string;
+  extendedTrial?: boolean;
 }) {
   if (!SELF_SERVE_PLANS.includes(data.planType)) {
     throw new AppError('Invalid plan selected', 400);
@@ -55,6 +60,8 @@ export async function createSignup(data: {
   const otp = generateOtp();
   const otpExpiresAt = new Date(Date.now() + OTP_TTL_MINUTES * 60 * 1000);
   const { currency, amount } = getSubscriptionPrice(data.country, data.planType as 'MONTHLY' | 'YEARLY');
+  const trialDays = data.extendedTrial ? EXTENDED_TRIAL_DAYS : TRIAL_DAYS;
+  const trialEndsAt = new Date(Date.now() + trialDays * 24 * 60 * 60 * 1000);
 
   // An existing-but-unverified user is a leftover from a signup that was
   // never finished (OTP never entered, or it expired) - the email is
@@ -69,6 +76,7 @@ export async function createSignup(data: {
         data: {
           name: data.shopName,
           planType: data.planType,
+          trialEndsAt,
           country: data.country,
           currency,
           subscriptionPrice: amount,
@@ -102,8 +110,6 @@ export async function createSignup(data: {
   while (await prisma.shop.findUnique({ where: { slug } })) {
     slug = `${baseSlug}-${++suffix}`;
   }
-
-  const trialEndsAt = new Date(Date.now() + TRIAL_DAYS * 24 * 60 * 60 * 1000);
 
   const { shop } = await prisma.$transaction(async (tx) => {
     const shop = await tx.shop.create({

@@ -11,6 +11,7 @@ import { generateDatabaseDumpSql } from '../utils/dbDump';
 import { OTP_TTL_MINUTES, generateOtp, sendOtpEmail } from '../utils/otp';
 import { archiveCurrentLogo } from '../utils/shopLogo';
 import { buildPromoEmail, isValidPromoRegion, PromoRegion } from '../utils/promoEmail';
+import { getSubscriptionState } from '../utils/subscription';
 
 const DB_DUMP_RECIPIENT = 'autozord.com@gmail.com';
 
@@ -96,7 +97,7 @@ export async function resetUserPassword(id: string, customPassword?: string) {
 }
 
 export async function getShops() {
-  return prisma.shop.findMany({
+  const shops = await prisma.shop.findMany({
     where: { deletedAt: null },
     orderBy: { createdAt: 'desc' },
     include: {
@@ -104,14 +105,16 @@ export async function getShops() {
       settings: { select: { logoUrl: true } },
     },
   });
+  return shops.map(shop => ({ ...shop, ...getSubscriptionState(shop) }));
 }
 
 export async function getShop(id: string) {
-  const shop = await prisma.shop.findFirst({
+  const shopRow = await prisma.shop.findFirst({
     where: { id, deletedAt: null },
     include: { settings: { select: { logoUrl: true } } },
   });
-  if (!shop) throw new AppError('Shop not found', 404);
+  if (!shopRow) throw new AppError('Shop not found', 404);
+  const shop = { ...shopRow, ...getSubscriptionState(shopRow) };
 
   const [users, customerCount, vehicleCount, repairOrderCount, openRepairOrderCount, revenue] = await Promise.all([
     prisma.user.findMany({

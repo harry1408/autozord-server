@@ -10,6 +10,7 @@ import { sendEmail, wrapEmailHtml, CLIENT_URL, EMAIL_COLORS } from '../utils/ema
 import { generateDatabaseDumpSql } from '../utils/dbDump';
 import { OTP_TTL_MINUTES, generateOtp, sendOtpEmail } from '../utils/otp';
 import { archiveCurrentLogo } from '../utils/shopLogo';
+import { buildPromoEmail, isValidPromoRegion, PromoRegion } from '../utils/promoEmail';
 
 const DB_DUMP_RECIPIENT = 'autozord.com@gmail.com';
 
@@ -69,6 +70,14 @@ export async function getEmailLogs() {
     orderBy: { createdAt: 'desc' },
     take: 200,
   });
+}
+
+export async function sendPromoEmail(to: string, region: PromoRegion): Promise<void> {
+  if (!to || !/^\S+@\S+\.\S+$/.test(to)) throw new AppError('A valid recipient email is required', 400);
+  if (!isValidPromoRegion(region)) throw new AppError('Region must be US or CA', 400);
+
+  const { subject, html } = buildPromoEmail(region);
+  await sendEmail({ to, subject, html, category: 'PROMOTION' });
 }
 
 export async function resetUserPassword(id: string, customPassword?: string) {

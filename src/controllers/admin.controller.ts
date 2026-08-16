@@ -69,6 +69,13 @@ export async function getEmailLogs(req: Request, res: Response, next: NextFuncti
   } catch (err) { next(err); }
 }
 
+export async function sendPromoEmail(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    await adminService.sendPromoEmail(req.body?.to, req.body?.region);
+    res.json({ success: true, message: 'Promotional email sent' });
+  } catch (err) { next(err); }
+}
+
 export async function sendDatabaseDump(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
     res.json({ success: true, data: await adminService.generateAndEmailDatabaseDump() });

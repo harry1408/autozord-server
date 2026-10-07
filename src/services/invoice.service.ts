@@ -148,7 +148,7 @@ export async function updateStatus(id: string, status: string, shopId: string | 
   return prisma.invoice.update({ where: { id }, data: { status }, include: INVOICE_INCLUDE });
 }
 
-export async function sendInvoiceEmail(id: string, shopId: string | null, emailOverride: string | undefined, pdfBase64: string) {
+export async function sendInvoiceEmail(id: string, shopId: string | null, emailOverride: string | undefined, pdfBase64: string, senderEmail?: string) {
   if (!pdfBase64) throw new AppError('Invoice PDF is required', 400);
 
   const inv = await prisma.invoice.findFirst({ where: { id, ...shopScope(shopId), deletedAt: null }, include: INVOICE_INCLUDE });
@@ -170,6 +170,7 @@ export async function sendInvoiceEmail(id: string, shopId: string | null, emailO
       filename: `invoice-${inv.invoiceNumber}.pdf`,
       contentBase64: pdfBase64,
     },
+    cc: senderEmail,
   });
 
   return { email: targetEmail };

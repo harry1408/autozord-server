@@ -75,7 +75,19 @@ export interface EmailAttachment {
   contentBase64: string;
 }
 
-export async function sendEmail(opts: { to: string; subject: string; html: string; category?: EmailCategory; attachment?: EmailAttachment }): Promise<void> {
+// Combines the standing NOTIFICATION_CC with an optional per-send extra
+// (e.g. the shop user who clicked "send invoice"), deduped against each
+// other and against the recipient so nobody gets CC'd on their own email.
+function buildCcList(to: string, extraCc?: string): string | undefined {
+  const addrs = [NOTIFICATION_CC, extraCc]
+    .filter((a): a is string => !!a)
+    .map(a => a.trim())
+    .filter(a => a.toLowerCase() !== to.toLowerCase());
+  const unique = [...new Set(addrs.map(a => a.toLowerCase()))].map(lower => addrs.find(a => a.toLowerCase() === lower)!);
+  return unique.length ? unique.join(',') : undefined;
+}
+
+export async function sendEmail(opts: { to: string; subject: string; html: string; category?: EmailCategory; attachment?: EmailAttachment; cc?: string }): Promise<void> {
   const category = opts.category ?? 'GENERIC';
   const { EMAIL_LAMBDA_URL, EMAIL_HOST, EMAIL_PORT, EMAIL_USER, EMAIL_PASSWORD } = process.env;
   if (!EMAIL_LAMBDA_URL || !EMAIL_HOST || !EMAIL_USER || !EMAIL_PASSWORD) {
@@ -95,7 +107,7 @@ export async function sendEmail(opts: { to: string; subject: string; html: strin
         sender_email: cleanEnvValue(EMAIL_USER),
         sender_password: cleanEnvValue(EMAIL_PASSWORD),
         recipient_email: opts.to,
-        ...(opts.to !== NOTIFICATION_CC ? { cc_email: NOTIFICATION_CC } : {}),
+        ...(buildCcList(opts.to, opts.cc) ? { cc_email: buildCcList(opts.to, opts.cc) } : {}),
         subject: sanitizeForLambda(opts.subject),
         body: sanitizeForLambda(opts.html),
         ...(opts.attachment ? {

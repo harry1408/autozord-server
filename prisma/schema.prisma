@@ -372,6 +372,8 @@ model Payment {
   invoiceId       String
   amount          Float
   method          String   @default("CASH")
+  cardType        String? // 'DEBIT' | 'CREDIT' - only set when method is CARD
+  cardBrand       String? // 'VISA' | 'MASTERCARD' | 'AMEX' | 'DISCOVER' | 'OTHER' - only set when method is CARD
   referenceNumber String?
   notes           String?
   paidAt          DateTime @default(now())

@@ -3,6 +3,8 @@ import { AppError } from '../middleware/errorHandler';
 import { paginate, buildPaginationMeta, shopScope } from '../utils/helpers';
 
 const VALID_METHODS = ['CASH', 'CARD', 'CHECK', 'FINANCING', 'OTHER'];
+const VALID_CARD_TYPES = ['DEBIT', 'CREDIT'];
+const VALID_CARD_BRANDS = ['VISA', 'MASTERCARD', 'AMEX', 'DISCOVER', 'OTHER'];
 
 export async function getPayments({ shopId, page, limit }: { shopId: string | null; page: number; limit: number }) {
   const { take, skip } = paginate(page, limit);
@@ -20,12 +22,15 @@ export async function getPayments({ shopId, page, limit }: { shopId: string | nu
 
 export async function createPayment(data: {
   invoiceId: string; amount: number; method: string;
+  cardType?: string; cardBrand?: string;
   referenceNumber?: string; notes?: string; paidAt?: string;
 }, shopId: string | null) {
   if (!data.invoiceId || !data.amount || !data.method) {
     throw new AppError('Invoice, amount, and method are required', 400);
   }
   if (!VALID_METHODS.includes(data.method)) throw new AppError('Invalid payment method', 400);
+  if (data.cardType && !VALID_CARD_TYPES.includes(data.cardType)) throw new AppError('Invalid card type', 400);
+  if (data.cardBrand && !VALID_CARD_BRANDS.includes(data.cardBrand)) throw new AppError('Invalid card brand', 400);
 
   const invoice = await prisma.invoice.findFirst({ where: { id: data.invoiceId, ...shopScope(shopId), deletedAt: null } });
   if (!invoice) throw new AppError('Invoice not found', 404);
@@ -37,6 +42,8 @@ export async function createPayment(data: {
       invoiceId: data.invoiceId,
       amount: data.amount,
       method: data.method,
+      cardType: data.method === 'CARD' ? data.cardType : undefined,
+      cardBrand: data.method === 'CARD' ? data.cardBrand : undefined,
       referenceNumber: data.referenceNumber,
       notes: data.notes,
       paidAt: data.paidAt ? new Date(data.paidAt) : new Date(),

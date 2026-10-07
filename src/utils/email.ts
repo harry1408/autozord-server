@@ -32,7 +32,7 @@ export function wrapEmailHtml(innerHtml: string): string {
 
 export const EMAIL_COLORS = { BRAND_RED, BRAND_RED_TINT, BRAND_RED_BORDER, TEXT_DARK, TEXT_MUTED };
 
-async function logEmail(data: { to: string; subject: string; category: EmailCategory; status: 'SENT' | 'FAILED'; errorMessage?: string }): Promise<void> {
+async function logEmail(data: { to: string; cc?: string; subject: string; category: EmailCategory; status: 'SENT' | 'FAILED'; errorMessage?: string }): Promise<void> {
   try {
     await prisma.emailLog.create({ data });
   } catch (err) {
@@ -89,10 +89,11 @@ function buildCcList(to: string, extraCc?: string): string | undefined {
 
 export async function sendEmail(opts: { to: string; subject: string; html: string; category?: EmailCategory; attachment?: EmailAttachment; cc?: string }): Promise<void> {
   const category = opts.category ?? 'GENERIC';
+  const ccList = buildCcList(opts.to, opts.cc);
   const { EMAIL_LAMBDA_URL, EMAIL_HOST, EMAIL_PORT, EMAIL_USER, EMAIL_PASSWORD } = process.env;
   if (!EMAIL_LAMBDA_URL || !EMAIL_HOST || !EMAIL_USER || !EMAIL_PASSWORD) {
     const message = 'Email is not configured (EMAIL_LAMBDA_URL/EMAIL_HOST/EMAIL_USER/EMAIL_PASSWORD missing)';
-    await logEmail({ to: opts.to, subject: opts.subject, category, status: 'FAILED', errorMessage: message });
+    await logEmail({ to: opts.to, cc: ccList, subject: opts.subject, category, status: 'FAILED', errorMessage: message });
     throw new Error(message);
   }
 
@@ -107,7 +108,7 @@ export async function sendEmail(opts: { to: string; subject: string; html: strin
         sender_email: cleanEnvValue(EMAIL_USER),
         sender_password: cleanEnvValue(EMAIL_PASSWORD),
         recipient_email: opts.to,
-        ...(buildCcList(opts.to, opts.cc) ? { cc_email: buildCcList(opts.to, opts.cc) } : {}),
+        ...(ccList ? { cc_email: ccList } : {}),
         subject: sanitizeForLambda(opts.subject),
         body: sanitizeForLambda(opts.html),
         ...(opts.attachment ? {
@@ -118,7 +119,7 @@ export async function sendEmail(opts: { to: string; subject: string; html: strin
     });
   } catch (err) {
     logger.error('Failed to reach email Lambda', err);
-    await logEmail({ to: opts.to, subject: opts.subject, category, status: 'FAILED', errorMessage: (err as Error).message });
+    await logEmail({ to: opts.to, cc: ccList, subject: opts.subject, category, status: 'FAILED', errorMessage: (err as Error).message });
     throw err;
   }
 
@@ -131,9 +132,9 @@ export async function sendEmail(opts: { to: string; subject: string; html: strin
   if (!inner?.success) {
     const errorMessage = inner?.message || `Unexpected Lambda response (HTTP ${res.status})`;
     logger.error('Email Lambda reported failure', { errorMessage });
-    await logEmail({ to: opts.to, subject: opts.subject, category, status: 'FAILED', errorMessage: errorMessage.slice(0, 500) });
+    await logEmail({ to: opts.to, cc: ccList, subject: opts.subject, category, status: 'FAILED', errorMessage: errorMessage.slice(0, 500) });
     throw new Error(errorMessage);
   }
 
-  await logEmail({ to: opts.to, subject: opts.subject, category, status: 'SENT' });
+  await logEmail({ to: opts.to, cc: ccList, subject: opts.subject, category, status: 'SENT' });
 }

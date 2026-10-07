@@ -533,6 +533,8 @@ model InquiryShop {
 model EmailLog {
   id           String   @id @default(uuid())
   to           String
+  cc           String? // comma-separated if more than one
+  bcc          String? // comma-separated if more than one - no sends set this today, reserved for future use
   subject      String
   category     String // 'OTP' | 'PASSWORD_RESET' | 'GENERIC'
   status       String // 'SENT' | 'FAILED'
